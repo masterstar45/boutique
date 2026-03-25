@@ -1,0 +1,20 @@
+packages:
+  "framer-motion": "For premium smooth animations and page transitions"
+  "qrcode.react": "To display crypto payment QR codes"
+  "lucide-react": "For beautiful consistent icons"
+  "date-fns": "For formatting order and payment dates"
+  "clsx": "For conditional tailwind classes"
+  "tailwind-merge": "For merging tailwind classes safely"
+
+images:
+  - path: "artifacts/bankdata-app/public/images/logo.png"
+    description: "Ultra premium luxury 3D crypto coin logo with a B symbol, dark background with gold accents, photorealistic, 8k"
+    aspect_ratio: "1:1"
+  - path: "artifacts/bankdata-app/public/images/mesh-bg.png"
+    description: "Abstract deep dark blue and black mesh gradient background with subtle gold light leaks, glassmorphism aesthetic"
+    aspect_ratio: "16:9"
+
+notes:
+  - Global window.fetch will be patched in App.tsx to automatically append the Bearer token to all /api requests, working seamlessly with Orval's generated customFetch.
+  - Using React Context for Cart and Auth state.
+  - Mocking Telegram WebApp environment for browser development.
