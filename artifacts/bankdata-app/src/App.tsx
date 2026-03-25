@@ -25,6 +25,7 @@ import { AdminOrders } from "@/pages/admin/AdminOrders";
 import { AdminUsers } from "@/pages/admin/AdminUsers";
 import { AdminPromo } from "@/pages/admin/AdminPromo";
 import { AdminAdmins } from "@/pages/admin/AdminAdmins";
+import { AdminAffiliation } from "@/pages/admin/AdminAffiliation";
 
 import NotFound from "@/pages/not-found";
 
@@ -214,6 +215,9 @@ function MainApp() {
       </Route>
       <Route path="/admin/admins">
         {() => <AdminRoute component={AdminAdmins} />}
+      </Route>
+      <Route path="/admin/affiliation">
+        {() => <AdminRoute component={AdminAffiliation} />}
       </Route>
 
       <Route component={NotFound} />

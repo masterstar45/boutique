@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Package, ShoppingBag, Users, Tag, ShieldCheck, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Users, Tag, ShieldCheck, ExternalLink, GitBranch } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ const ADMIN_NAV = [
   { icon: Users, label: 'Utilisateurs', href: '/admin/utilisateurs' },
   { icon: Tag, label: 'Promo Codes', href: '/admin/promo-codes' },
   { icon: ShieldCheck, label: 'Admins & Crédits', href: '/admin/admins' },
+  { icon: GitBranch, label: 'Affiliation', href: '/admin/affiliation' },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

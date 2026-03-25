@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, categoriesTable } from "@workspace/db";
+import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, categoriesTable, affiliatesTable } from "@workspace/db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
@@ -390,6 +390,103 @@ router.post("/admin/credit", requireAdmin, async (req, res): Promise<void> => {
     newBalance: updated.balance,
     credited: creditAmount,
   });
+});
+
+// ─── Affiliates Management ─────────────────────────────────────────────────
+
+router.get("/admin/affiliates", requireAdmin, async (_req, res): Promise<void> => {
+  const affiliates = await db
+    .select({
+      id: affiliatesTable.id,
+      userId: affiliatesTable.userId,
+      code: affiliatesTable.code,
+      commissionRate: affiliatesTable.commissionRate,
+      totalReferrals: affiliatesTable.totalReferrals,
+      totalEarnings: affiliatesTable.totalEarnings,
+      createdAt: affiliatesTable.createdAt,
+      username: usersTable.username,
+      firstName: usersTable.firstName,
+      telegramId: usersTable.telegramId,
+    })
+    .from(affiliatesTable)
+    .leftJoin(usersTable, eq(affiliatesTable.userId, usersTable.id))
+    .orderBy(desc(affiliatesTable.totalEarnings));
+
+  res.json({ affiliates });
+});
+
+router.patch("/admin/affiliates/:id/commission", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const { commissionRate } = req.body;
+
+  const rate = parseFloat(commissionRate);
+  if (isNaN(rate) || rate < 0 || rate > 100) {
+    res.status(400).json({ error: "Taux de commission invalide (0-100)" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(affiliatesTable)
+    .set({ commissionRate: String(rate.toFixed(2)) })
+    .where(eq(affiliatesTable.id, id))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Affilié introuvable" });
+    return;
+  }
+
+  res.json({ id: updated.id, commissionRate: updated.commissionRate });
+});
+
+router.post("/admin/affiliates/:userId/sync", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const userId = parseInt(raw, 10);
+
+  const affiliate = await db
+    .select()
+    .from(affiliatesTable)
+    .where(eq(affiliatesTable.userId, userId))
+    .then(r => r[0]);
+
+  if (!affiliate) {
+    res.status(404).json({ error: "Affilié introuvable" });
+    return;
+  }
+
+  const referrals = await db
+    .select({ count: sql<number>`COUNT(*)`.as("count") })
+    .from(usersTable)
+    .where(sql`${usersTable.referredBy} = ${affiliate.code}`);
+
+  const earnings = await db
+    .select({ total: sql<string>`COALESCE(SUM(${ordersTable.amount} * ${affiliate.commissionRate} / 100), 0)`.as("total") })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.affiliateCode, affiliate.code), eq(ordersTable.status, "completed")));
+
+  const [updated] = await db
+    .update(affiliatesTable)
+    .set({
+      totalReferrals: Number(referrals[0].count),
+      totalEarnings: String(parseFloat(earnings[0].total || "0").toFixed(2)),
+    })
+    .where(eq(affiliatesTable.id, affiliate.id))
+    .returning();
+
+  res.json({ success: true, totalReferrals: updated.totalReferrals, totalEarnings: updated.totalEarnings });
+});
+
+router.delete("/admin/affiliates/:id", requireAdmin, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+
+  const deleted = await db.delete(affiliatesTable).where(eq(affiliatesTable.id, id)).returning();
+  if (!deleted.length) {
+    res.status(404).json({ error: "Affilié introuvable" });
+    return;
+  }
+  res.sendStatus(204);
 });
 
 export default router;
