@@ -1,4 +1,5 @@
 import axios from "axios";
+import crypto from "crypto";
 
 const OXAPAY_API_KEY = process.env.OXAPAY_API_KEY;
 const OXAPAY_BASE = "https://api.oxapay.com";
@@ -78,7 +79,6 @@ export async function getPaymentStatus(trackId: string): Promise<OxaPayStatus> {
 
 export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: string): boolean {
   if (!OXAPAY_API_KEY) return true;
-  const crypto = require("crypto");
   const hmac = crypto.createHmac("sha512", OXAPAY_API_KEY)
     .update(JSON.stringify(body))
     .digest("hex");

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, categoriesTable, affiliatesTable } from "@workspace/db";
+import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, affiliatesTable } from "@workspace/db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
