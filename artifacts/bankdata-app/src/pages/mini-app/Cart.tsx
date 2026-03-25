@@ -4,13 +4,34 @@ import { MiniAppLayout } from '@/components/layout/MiniAppLayout';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCreateOrder, useValidatePromo } from '@workspace/api-client-react';
+import { useMutation } from '@tanstack/react-query';
 import { formatMoney } from '@/lib/utils';
-import { Trash2, Plus, Minus, Tag, ChevronRight, CheckCircle2, ShoppingCart, Package } from 'lucide-react';
+import { Trash2, Plus, Minus, Tag, ChevronRight, CheckCircle2, ShoppingCart, Package, Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+
+function usePayWithBalance() {
+  return useMutation({
+    mutationFn: async (orderId: number) => {
+      const token = localStorage.getItem('bankdata_token');
+      const res = await fetch('/api/payments/pay-with-balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw { data, status: res.status };
+      return data as { success: boolean; paymentId: number };
+    },
+  });
+}
 
 export function Cart() {
   const { items, updateQuantity, removeFromCart, totalPrice, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -19,6 +40,9 @@ export function Cart() {
 
   const validatePromo = useValidatePromo();
   const createOrder = useCreateOrder();
+  const payWithBalance = usePayWithBalance();
+
+  const balance = parseFloat(user?.balance ?? '0');
 
   const handleApplyPromo = async () => {
     if (!promoCode) return;
@@ -36,11 +60,13 @@ export function Cart() {
   };
 
   const finalPrice = activePromo ? Math.max(0, totalPrice - activePromo.discountAmount) : totalPrice;
+  const hasEnoughBalance = balance >= finalPrice;
+  const isProcessing = createOrder.isPending || payWithBalance.isPending;
 
   const handleCheckout = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || !hasEnoughBalance) return;
     try {
-      const res = await createOrder.mutateAsync({
+      const order = await createOrder.mutateAsync({
         data: {
           items: items.map(i => ({
             productId: i.product.id,
@@ -52,10 +78,17 @@ export function Cart() {
           affiliateCode: localStorage.getItem('bankdata_ref') || undefined
         }
       });
+
+      await payWithBalance.mutateAsync(order.id);
+
       clearCart();
-      setLocation(`/paiement/${res.id}`);
+      await refreshUser();
+
+      toast({ title: "Paiement réussi !", description: "Votre commande a été confirmée." });
+      setLocation('/commandes');
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Erreur de commande", description: e.message });
+      const msg = e?.data?.error || e.message || "Une erreur est survenue.";
+      toast({ variant: "destructive", title: "Erreur de paiement", description: msg });
     }
   };
 
@@ -63,6 +96,34 @@ export function Cart() {
     <MiniAppLayout>
       <div className="p-6 pb-32">
         <h1 className="text-2xl font-display font-black text-white mb-6">Mon Panier</h1>
+
+        {/* Solde disponible */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 flex items-center justify-between glass-card p-4 rounded-2xl border border-white/10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
+                <Wallet className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Votre solde</p>
+                <p className="font-black text-white text-lg leading-tight">{formatMoney(balance)}</p>
+              </div>
+            </div>
+            {items.length > 0 && (
+              <div className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
+                hasEnoughBalance
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+              }`}>
+                {hasEnoughBalance ? 'Suffisant' : 'Insuffisant'}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {items.length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center">
@@ -187,15 +248,52 @@ export function Cart() {
                 <span className="font-bold text-white text-lg">Total</span>
                 <span className="font-black text-2xl text-gradient-gold">{formatMoney(finalPrice)}</span>
               </div>
+              <div className="h-px w-full bg-white/10" />
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Solde après paiement</span>
+                <span className={`font-bold ${hasEnoughBalance ? 'text-white' : 'text-rose-400'}`}>
+                  {hasEnoughBalance ? formatMoney(balance - finalPrice) : '—'}
+                </span>
+              </div>
             </div>
+
+            {/* Alerte solde insuffisant */}
+            <AnimatePresence>
+              {!hasEnoughBalance && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400"
+                >
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm">Solde insuffisant</p>
+                    <p className="text-xs mt-0.5 text-rose-400/70">
+                      Il vous manque <strong>{formatMoney(finalPrice - balance)}</strong>. Rechargez votre solde depuis votre profil.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Checkout */}
             <button
               onClick={handleCheckout}
-              disabled={createOrder.isPending}
-              className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2"
+              disabled={isProcessing || !hasEnoughBalance}
+              className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createOrder.isPending ? 'Création...' : 'Payer en Crypto'} <ChevronRight className="w-5 h-5" />
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Traitement en cours...
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-5 h-5" />
+                  Payer avec mon solde
+                </>
+              )}
             </button>
           </div>
         )}

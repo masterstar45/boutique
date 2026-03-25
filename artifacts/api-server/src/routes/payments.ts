@@ -227,5 +227,59 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
   }
 }
 
+router.post("/payments/pay-with-balance", requireAuth, async (req, res): Promise<void> => {
+  const { orderId } = req.body;
+
+  if (!orderId) {
+    res.status(400).json({ error: "orderId requis" });
+    return;
+  }
+
+  const order = await db.select().from(ordersTable)
+    .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, req.user!.userId)))
+    .then(r => r[0]);
+
+  if (!order) {
+    res.status(404).json({ error: "Commande introuvable" });
+    return;
+  }
+
+  if (order.status !== "pending") {
+    res.status(400).json({ error: "Commande déjà traitée" });
+    return;
+  }
+
+  const user = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId)).then(r => r[0]);
+
+  if (!user) {
+    res.status(404).json({ error: "Utilisateur introuvable" });
+    return;
+  }
+
+  const balance = parseFloat(user.balance ?? "0");
+  const amount = parseFloat(order.amount);
+
+  if (balance < amount) {
+    res.status(402).json({ error: "Solde insuffisant", balance: user.balance, required: order.amount });
+    return;
+  }
+
+  await db.update(usersTable)
+    .set({ balance: sql`${usersTable.balance} - ${amount}` })
+    .where(eq(usersTable.id, req.user!.userId));
+
+  const [payment] = await db.insert(paymentsTable).values({
+    orderId,
+    amount: order.amount,
+    currency: "EUR",
+    status: "confirmed",
+    confirmedAt: new Date(),
+  }).returning();
+
+  await processConfirmedPayment(orderId, payment.id);
+
+  res.json({ success: true, paymentId: payment.id });
+});
+
 export { processConfirmedPayment };
 export default router;
