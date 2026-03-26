@@ -67,25 +67,81 @@ function parseCSV(text: string): FicheData[] {
 }
 
 function parseTXT(text: string): FicheData[] {
-  const blocks = text.split(/={10,}/).filter(b => b.trim());
-  const rows: FicheData[] = [];
+  // Format 1: FICHE blocks separated by ====
+  if (text.includes("FICHE")) {
+    const blocks = text.split(/={10,}/).filter(b => b.trim());
+    const rows: FicheData[] = [];
 
-  for (const block of blocks) {
-    const obj: FicheData = {};
-    const lines = block.split(/\r?\n/).filter(l => l.trim());
+    for (const block of blocks) {
+      const obj: FicheData = {};
+      const lines = block.split(/\r?\n/).filter(l => l.trim());
 
-    for (const line of lines) {
-      if (!line.includes(":")) continue;
+      for (const line of lines) {
+        if (!line.includes(":")) continue;
+        const [key, ...valueParts] = line.split(":");
+        obj[key.trim()] = valueParts.join(":").trim();
+      }
+
+      if (Object.keys(obj).length > 0) {
+        rows.push(obj);
+      }
+    }
+    return rows;
+  }
+
+  // Format 2: Key:Value pairs with blank line separator between records
+  const blocksByBlankLine = text.split(/\n\s*\n/).filter(b => b.trim());
+  if (blocksByBlankLine.length > 1) {
+    const rows: FicheData[] = [];
+    for (const block of blocksByBlankLine) {
+      const obj: FicheData = {};
+      const lines = block.split(/\r?\n/).filter(l => l.trim());
+      
+      for (const line of lines) {
+        if (line.includes(":")) {
+          const [key, ...valueParts] = line.split(":");
+          obj[key.trim()] = valueParts.join(":").trim();
+        } else if (line.includes("=")) {
+          const [key, ...valueParts] = line.split("=");
+          obj[key.trim()] = valueParts.join("=").trim();
+        } else if (line.includes("|")) {
+          const [key, value] = line.split("|");
+          if (key && value) {
+            obj[key.trim()] = value.trim();
+          }
+        }
+      }
+      if (Object.keys(obj).length > 0) {
+        rows.push(obj);
+      }
+    }
+    return rows;
+  }
+
+  // Format 3: Single record - all lines are Key:Value or Key=Value
+  const obj: FicheData = {};
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  
+  for (const line of lines) {
+    if (line.includes(":")) {
       const [key, ...valueParts] = line.split(":");
       obj[key.trim()] = valueParts.join(":").trim();
-    }
-
-    if (Object.keys(obj).length > 0) {
-      rows.push(obj);
+    } else if (line.includes("=")) {
+      const [key, ...valueParts] = line.split("=");
+      obj[key.trim()] = valueParts.join("=").trim();
+    } else if (line.includes("|")) {
+      const [key, value] = line.split("|");
+      if (key && value) {
+        obj[key.trim()] = value.trim();
+      }
     }
   }
 
-  return rows;
+  if (Object.keys(obj).length > 0) {
+    return [obj];
+  }
+
+  return [];
 }
 
 function parseFile(content: string): FicheData[] {
