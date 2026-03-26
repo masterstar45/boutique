@@ -1,22 +1,39 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: BANKDATA SaaS Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: products
+    description: Product catalog
+  - name: orders
+    description: Order management
+  - name: payments
+    description: Payment processing
+  - name: downloads
+    description: File downloads
+  - name: admin
+    description: Admin panel
+  - name: promo
+    description: Promo codes & affiliates
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +41,1018 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/telegram:
+    post:
+      operationId: telegramAuth
+      tags: [auth]
+      summary: Authenticate via Telegram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramAuthRequest"
+      responses:
+        "200":
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid auth data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/me/orders:
+    get:
+      operationId: getMyOrders
+      tags: [users]
+      summary: Get my orders
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List active products
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: number
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: featured
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get product detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [products]
+      summary: List categories
+      responses:
+        "200":
+          description: Categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryListResponse"
+
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a new order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /orders/{id}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Order detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+
+  /payments/create:
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Create crypto payment invoice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentRequest"
+      responses:
+        "201":
+          description: Payment invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+
+  /payments/{id}/status:
+    get:
+      operationId: getPaymentStatus
+      tags: [payments]
+      summary: Get payment status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentStatusResponse"
+
+  /downloads/{token}:
+    get:
+      operationId: downloadFile
+      tags: [downloads]
+      summary: Download a purchased file
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File content
+        "403":
+          description: Token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /promo/validate:
+    post:
+      operationId: validatePromo
+      tags: [promo]
+      summary: Validate a promo code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidatePromoRequest"
+      responses:
+        "200":
+          description: Promo code details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoValidateResponse"
+        "404":
+          description: Invalid promo code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /affiliate/stats:
+    get:
+      operationId: getAffiliateStats
+      tags: [promo]
+      summary: Get affiliate statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Affiliate stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateStatsResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get dashboard statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsResponse"
+
+  /admin/products:
+    get:
+      operationId: adminListProducts
+      tags: [admin]
+      summary: List all products (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+    post:
+      operationId: adminCreateProduct
+      tags: [admin]
+      summary: Create a product
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+
+  /admin/products/{id}:
+    put:
+      operationId: adminUpdateProduct
+      tags: [admin]
+      summary: Update a product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+    delete:
+      operationId: adminDeleteProduct
+      tags: [admin]
+      summary: Delete a product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /admin/orders:
+    get:
+      operationId: adminListOrders
+      tags: [admin]
+      summary: List all orders (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrderListResponse"
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: List all users (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+
+  /admin/promo-codes:
+    get:
+      operationId: adminListPromoCodes
+      tags: [admin]
+      summary: List all promo codes
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Promo codes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCodeListResponse"
+    post:
+      operationId: adminCreatePromoCode
+      tags: [admin]
+      summary: Create a promo code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCodeRequest"
+      responses:
+        "201":
+          description: Promo code created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCode"
+
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Object content streamed.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    TelegramAuthRequest:
+      type: object
+      properties:
+        initData:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: number
+            username:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+            photo_url:
+              type: string
+          required: [id, first_name]
+      required: [initData, user]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required: [token, user]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: number
+        telegramId:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        photoUrl:
+          type: string
+        balance:
+          type: string
+        loyaltyPoints:
+          type: number
+        affiliateCode:
+          type: string
+        isAdmin:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, telegramId, firstName, balance, loyaltyPoints, isAdmin, createdAt]
+
+    UserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile"
+      required: [users]
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+      required: [id, name, slug]
+
+    CategoryListResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+      required: [categories]
+
+    ProductSummary:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: string
+        imageUrl:
+          type: string
+        categoryId:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        isFeatured:
+          type: boolean
+        isBestSeller:
+          type: boolean
+        isNew:
+          type: boolean
+        totalSales:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, description, price, isActive, isFeatured, isBestSeller, isNew, totalSales, createdAt]
+
+    ProductDetail:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: string
+        imageUrl:
+          type: string
+        categoryId:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+        isFeatured:
+          type: boolean
+        isBestSeller:
+          type: boolean
+        isNew:
+          type: boolean
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: number
+        downloadLimit:
+          type: number
+        totalSales:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, description, price, isActive, isFeatured, isBestSeller, isNew, totalSales, createdAt]
+
+    ProductListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+      required: [products]
+
+    CreateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: string
+        fileUrl:
+          type: string
+        fileName:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: number
+        categoryId:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+        imageUrl:
+          type: string
+        isActive:
+          type: boolean
+        isFeatured:
+          type: boolean
+        isBestSeller:
+          type: boolean
+        isNew:
+          type: boolean
+        downloadLimit:
+          type: number
+        downloadExpiry:
+          type: number
+      required: [name, description, price]
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: number
+        productId:
+          type: number
+        productName:
+          type: string
+        quantity:
+          type: number
+        price:
+          type: string
+      required: [id, productId, productName, quantity, price]
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: number
+        userId:
+          type: number
+        status:
+          type: string
+        amount:
+          type: string
+        promoCode:
+          type: string
+        discountAmount:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, status, amount, items, createdAt]
+
+    OrderListResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderResponse"
+      required: [orders]
+
+    AdminOrderListResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOrderItem"
+      required: [orders]
+
+    AdminOrderItem:
+      type: object
+      properties:
+        id:
+          type: number
+        userId:
+          type: number
+        username:
+          type: string
+        status:
+          type: string
+        amount:
+          type: string
+        itemCount:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, status, amount, itemCount, createdAt]
+
+    CreateOrderRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: number
+              quantity:
+                type: number
+            required: [productId, quantity]
+        promoCode:
+          type: string
+        affiliateCode:
+          type: string
+      required: [items]
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: number
+        orderId:
+          type: number
+        trackId:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        status:
+          type: string
+        payAddress:
+          type: string
+        qrCode:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required: [id, orderId, amount, currency, status]
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        id:
+          type: number
+        status:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+      required: [id, status]
+
+    CreatePaymentRequest:
+      type: object
+      properties:
+        orderId:
+          type: number
+        currency:
+          type: string
+      required: [orderId]
+
+    ValidatePromoRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        orderAmount:
+          type: number
+      required: [code, orderAmount]
+
+    PromoValidateResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        discountType:
+          type: string
+        discountValue:
+          type: string
+        discountAmount:
+          type: number
+      required: [valid, discountType, discountValue, discountAmount]
+
+    AffiliateStatsResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        totalReferrals:
+          type: number
+        totalEarnings:
+          type: string
+        commissionRate:
+          type: string
+      required: [code, totalReferrals, totalEarnings, commissionRate]
+
+    AdminStatsResponse:
+      type: object
+      properties:
+        totalRevenue:
+          type: string
+        totalOrders:
+          type: number
+        totalUsers:
+          type: number
+        totalProducts:
+          type: number
+        pendingOrders:
+          type: number
+        revenueToday:
+          type: string
+        ordersToday:
+          type: number
+        newUsersToday:
+          type: number
+      required: [totalRevenue, totalOrders, totalUsers, totalProducts, pendingOrders, revenueToday, ordersToday, newUsersToday]
+
+    PromoCode:
+      type: object
+      properties:
+        id:
+          type: number
+        code:
+          type: string
+        discountType:
+          type: string
+        discountValue:
+          type: string
+        maxUses:
+          type: number
+        currentUses:
+          type: number
+        isActive:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, code, discountType, discountValue, currentUses, isActive, createdAt]
+
+    PromoCodeListResponse:
+      type: object
+      properties:
+        promoCodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoCode"
+      required: [promoCodes]
+
+    CreatePromoCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        discountType:
+          type: string
+        discountValue:
+          type: string
+        maxUses:
+          type: number
+        minOrderAmount:
+          type: string
+        isActive:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+      required: [code, discountType, discountValue]
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
