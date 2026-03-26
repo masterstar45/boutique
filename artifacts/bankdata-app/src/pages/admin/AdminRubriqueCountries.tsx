@@ -93,9 +93,9 @@ export function AdminRubriqueCountries() {
 
   return (
     <AdminLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-display font-black text-white">Pays par Rubrique</h1>
-        <p className="text-muted-foreground mt-1">Activez les pays disponibles pour chaque rubrique de la boutique.</p>
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Pays par Rubrique</h1>
+        <p className="text-muted-foreground text-sm mt-1">Activez les pays disponibles pour chaque rubrique de la boutique.</p>
       </div>
 
       <div className="glass-card rounded-2xl p-4 mb-5">
