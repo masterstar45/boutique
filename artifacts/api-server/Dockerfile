@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:22
 
 WORKDIR /app
 
@@ -9,13 +9,11 @@ COPY artifacts/api-server/package.json artifacts/api-server/package.json
 COPY lib/db/package.json lib/db/package.json
 COPY lib/api-zod/package.json lib/api-zod/package.json
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY artifacts/api-server artifacts/api-server
 COPY lib lib
 
 RUN pnpm --filter @workspace/api-server build
-
-ENV NODE_ENV=production
 
 CMD ["pnpm", "--filter", "@workspace/api-server", "start"]
