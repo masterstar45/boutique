@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { initBot, setMiniAppBaseUrl } from "./lib/telegram-bot";
@@ -44,5 +46,21 @@ initBot(webhookUrl);
 if (miniAppUrl) setMiniAppBaseUrl(miniAppUrl);
 
 app.use("/api", router);
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDir = path.resolve(__dirname, "..", "public");
+
+try {
+  const fs = await import("fs");
+  if (fs.existsSync(frontendDir)) {
+    logger.info({ frontendDir }, "Serving static frontend");
+    app.use(express.static(frontendDir, { maxAge: "1d" }));
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(frontendDir, "index.html"));
+    });
+  }
+} catch {
+  // no frontend built — dev mode, frontend served by Vite
+}
 
 export default app;
