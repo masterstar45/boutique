@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
-import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, affiliatesTable, botButtonsTable } from "@workspace/db";
+import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, affiliatesTable, botButtonsTable, categoriesTable } from "@workspace/db";
 import { eq, desc, sql, and, gte, asc } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
 import { getAllRubriqueCountries, isValidRubrique, setRubriqueCountries } from "../lib/rubriqueCountries";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { convertToFicheFormat } from "../lib/fiche-converter";
 
 const storageService = new ObjectStorageService();
 
@@ -39,6 +40,49 @@ async function countFileLines(fileUrl: string): Promise<number> {
   } catch (err) {
     console.warn("[admin] Could not count file lines:", err);
     return 0;
+  }
+}
+
+/**
+ * Convertit un fichier au format FICHE CLIENT si la catégorie est "fiche client"
+ * Retourne le nouveau fileUrl si conversion, sinon retourne l'URL original
+ */
+async function maybeConvertFicheFile(fileUrl: string, categoryId: number | null): Promise<string> {
+  try {
+    if (!fileUrl || !categoryId) return fileUrl;
+
+    const category = await db.select()
+      .from(categoriesTable)
+      .where(eq(categoriesTable.id, categoryId))
+      .then(r => r[0]);
+
+    if (!category) return fileUrl;
+
+    // Check if category slug or name contains "fiche"
+    const isFicheCategory = (
+      category.slug?.toLowerCase().includes("fiche") ||
+      category.name.toLowerCase().includes("fiche")
+    );
+
+    if (!isFicheCategory) return fileUrl;
+
+    // Read original file
+    const objectPath = normalizeObjectPath(fileUrl);
+    const buffer = await storageService.readObjectBuffer(objectPath);
+    const text = buffer.toString('utf-8');
+
+    // Convert to FICHE format
+    const convertedText = convertToFicheFormat(text);
+
+    // Upload converted file
+    const convertedBuffer = Buffer.from(convertedText, 'utf-8');
+    const newFileUrl = await storageService.uploadObjectBuffer(convertedBuffer, 'text/plain');
+
+    console.log(`[admin] Converted file to FICHE format: ${fileUrl} -> ${newFileUrl}`);
+    return newFileUrl;
+  } catch (err) {
+    console.warn("[admin] Could not convert file to FICHE format:", err);
+    return fileUrl;
   }
 }
 
@@ -184,10 +228,16 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
 
   const price = computeBasePrice(priceOptions);
 
+  // Convert file to FICHE format if needed
+  let processedFileUrl = fileUrl ?? null;
+  if (typeof fileUrl === "string" && fileUrl.length > 0) {
+    processedFileUrl = await maybeConvertFicheFile(fileUrl, categoryId);
+  }
+
   // Auto-calculate stock from file line count if a file is uploaded
   let computedStock = stock ?? 0;
-  if (typeof fileUrl === "string" && fileUrl.length > 0) {
-    const lineCount = await countFileLines(fileUrl);
+  if (typeof processedFileUrl === "string" && processedFileUrl.length > 0) {
+    const lineCount = await countFileLines(processedFileUrl);
     if (lineCount > 0) computedStock = lineCount;
   }
 
@@ -197,7 +247,7 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
     price,
     priceOptions: priceOptions ?? [],
     stock: computedStock,
-    fileUrl: fileUrl ?? null,
+    fileUrl: processedFileUrl,
     fileName: fileName ?? null,
     fileType: fileType ?? null,
     fileSize: fileSize ?? null,
@@ -229,13 +279,19 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
 
   const price = computeBasePrice(priceOptions);
 
+  // Convert file to FICHE format if needed
+  let processedFileUrl = fileUrl ?? null;
+  if (typeof fileUrl === "string" && fileUrl.length > 0) {
+    processedFileUrl = await maybeConvertFicheFile(fileUrl, categoryId);
+  }
+
   const currentStockUsed = existing.stockUsed ?? 0;
   let parsedStock = Number.isFinite(Number(stock)) ? Number(stock) : 0;
-  const hasNewStockFile = typeof fileUrl === "string" && fileUrl.length > 0 && fileUrl !== (existing.fileUrl ?? "");
+  const hasNewStockFile = typeof processedFileUrl === "string" && processedFileUrl.length > 0 && processedFileUrl !== (existing.fileUrl ?? "");
 
   // Auto-calculate stock from file line count when a new file is uploaded
   if (hasNewStockFile) {
-    const lineCount = await countFileLines(fileUrl);
+    const lineCount = await countFileLines(processedFileUrl);
     if (lineCount > 0) parsedStock = lineCount;
   }
 
@@ -251,7 +307,7 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     priceOptions: priceOptions ?? [],
     stock: parsedStock,
     stockUsed: nextStockUsed,
-    fileUrl, fileName, fileType, fileSize, categoryId,
+    fileUrl: processedFileUrl, fileName, fileType, fileSize, categoryId,
     tags: tags ?? [],
     imageUrl, isActive, isFeatured, isBestSeller, isNew,
     downloadLimit, downloadExpiry,
