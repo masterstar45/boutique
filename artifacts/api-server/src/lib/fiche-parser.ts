@@ -4,6 +4,7 @@ import { logger } from "./logger";
 export interface UnifiedFiche {
   id: string;
   nomComplet: string;
+  dateNaissance: string;
   email: string;
   telephone: string;
   adresse: string;
@@ -51,15 +52,15 @@ function parseCsv(raw: string): Partial<UnifiedFiche> {
   const sep = raw.includes(";") ? ";" : ",";
   const parts = raw.split(sep).map(s => s.trim());
 
-  // Heuristique: cherche les champs par pattern
   const emailIdx = parts.findIndex(p => p.includes("@"));
   const ibanIdx = parts.findIndex(p => /^[A-Z]{2}\d{2}/.test(p));
   const phoneIdx = parts.findIndex(p => /^[\+0][\d\s\-\.]{7,}$/.test(p));
   const bicIdx = parts.findIndex(p => /^[A-Z]{4}[A-Z]{2}\w{2,5}$/.test(p));
+  const dateIdx = parts.findIndex(p => /^\d{2}[\/\-\.]\d{2}[\/\-\.]\d{2,4}$/.test(p));
 
-  // Champs identifiés par position ou pattern
   return {
     nomComplet: parts[0] ?? "",
+    dateNaissance: dateIdx >= 0 ? parts[dateIdx] : "",
     email: emailIdx >= 0 ? parts[emailIdx] : (parts[1] ?? ""),
     telephone: phoneIdx >= 0 ? parts[phoneIdx] : (parts[2] ?? ""),
     adresse: parts[3] ?? "",
@@ -75,6 +76,7 @@ function parseJsonSimple(raw: string): Partial<UnifiedFiche> {
 
   return {
     nomComplet: obj.nom_complet ?? obj.name ?? obj.nom ?? obj.full_name ?? obj.fullName ?? "",
+    dateNaissance: obj.date_naissance ?? obj.dateNaissance ?? obj["date de naissance"] ?? obj.birthDate ?? obj.birth_date ?? obj.dob ?? obj.naissance ?? "",
     email: obj.email ?? obj.mail ?? obj.e_mail ?? "",
     telephone: obj.telephone ?? obj.phone ?? obj.tel ?? obj.mobile ?? "",
     adresse: obj.adresse ?? obj.address ?? obj.addr ?? "",
@@ -84,11 +86,9 @@ function parseJsonSimple(raw: string): Partial<UnifiedFiche> {
   };
 }
 
-// ── Parsing JSON complexe (imbriqué) ──
 function parseJsonComplex(raw: string): Partial<UnifiedFiche> {
   const obj = JSON.parse(raw);
 
-  // Aplatir les sous-objets courants
   const identity = obj.identity ?? obj.identite ?? obj.personal ?? obj.info ?? {};
   const bank = obj.bank ?? obj.banque ?? obj.banking ?? obj.compte ?? {};
   const contact = obj.contact ?? obj.coordonnees ?? {};
@@ -98,6 +98,9 @@ function parseJsonComplex(raw: string): Partial<UnifiedFiche> {
       identity.nom_complet ?? identity.name ?? identity.full_name
       ?? `${identity.prenom ?? identity.firstName ?? ""} ${identity.nom ?? identity.lastName ?? ""}`.trim()
       ?? obj.nom_complet ?? obj.name ?? "",
+    dateNaissance:
+      identity.date_naissance ?? identity.dateNaissance ?? identity.birthDate ?? identity.dob
+      ?? obj.date_naissance ?? obj.dateNaissance ?? obj["date de naissance"] ?? obj.birthDate ?? obj.dob ?? "",
     email:
       contact.email ?? identity.email ?? obj.email ?? "",
     telephone:
@@ -129,6 +132,7 @@ function parseText(raw: string): Partial<UnifiedFiche> {
 
   return {
     nomComplet: findKey("nom_complet", "nom complet", "name", "nom", "full_name", "fullname") || lines[0] || "",
+    dateNaissance: findKey("date_naissance", "date de naissance", "datenaissance", "naissance", "birthdate", "birth_date", "dob", "né le", "née le"),
     email: findKey("email", "mail", "e-mail", "e_mail"),
     telephone: findKey("telephone", "tel", "phone", "mobile", "téléphone"),
     adresse: findKey("adresse", "address", "addr", "rue"),
@@ -162,6 +166,7 @@ export function parseFicheToUnified(rawData: string, forcedFormat?: FicheFormat)
   return {
     id: crypto.randomUUID?.() ?? `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     nomComplet: partial.nomComplet ?? "",
+    dateNaissance: partial.dateNaissance ?? "",
     email: partial.email ?? "",
     telephone: partial.telephone ?? "",
     adresse: partial.adresse ?? "",
@@ -221,11 +226,11 @@ export function generateExportContent(
 
     case "csv": {
       // Parse chaque ligne, exporte en CSV avec en-têtes
-      const headers = ["id", "nom_complet", "email", "telephone", "adresse", "iban", "bic"];
+      const headers = ["id", "nom_complet", "date_naissance", "email", "telephone", "adresse", "iban", "bic"];
       const rows = rawLines.map(line => {
         try {
           const f = parseFicheToUnified(line);
-          return [f.id, f.nomComplet, f.email, f.telephone, f.adresse, f.iban, f.bic]
+          return [f.id, f.nomComplet, f.dateNaissance, f.email, f.telephone, f.adresse, f.iban, f.bic]
             .map(v => `"${String(v).replace(/"/g, '""')}"`)
             .join(";");
         } catch {

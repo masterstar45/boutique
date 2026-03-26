@@ -10,6 +10,7 @@ function formatFicheBlock(fiche: UnifiedFiche, index: number): string {
   const lines: string[] = [];
   lines.push(`===== FICHE ${index + 1} =====`);
   if (fiche.nomComplet) lines.push(`Nom: ${fiche.nomComplet}`);
+  if (fiche.dateNaissance) lines.push(`Date de naissance: ${fiche.dateNaissance}`);
   if (fiche.email) lines.push(`Email: ${fiche.email}`);
   if (fiche.telephone) lines.push(`Téléphone: ${fiche.telephone}`);
   if (fiche.adresse) lines.push(`Adresse: ${fiche.adresse}`);
