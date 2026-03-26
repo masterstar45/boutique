@@ -131,7 +131,7 @@ export function AdminAffiliation() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-gradient-gold">Affiliation</h1>
+          <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Affiliation</h1>
           <p className="text-muted-foreground text-sm mt-1">Gérer les affiliés et leurs taux de commission</p>
         </div>
         <button
@@ -174,13 +174,13 @@ export function AdminAffiliation() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/5 text-muted-foreground text-xs uppercase tracking-wider">
-                  <th className="text-left px-5 py-4 font-semibold">Utilisateur</th>
-                  <th className="text-left px-4 py-4 font-semibold">Code</th>
-                  <th className="text-center px-4 py-4 font-semibold">Référés</th>
-                  <th className="text-right px-4 py-4 font-semibold">Gains</th>
-                  <th className="text-center px-4 py-4 font-semibold">Commission</th>
-                  <th className="text-center px-4 py-4 font-semibold">Actions</th>
+                <tr className="border-b border-white/[0.06] text-[11px] text-white/40 uppercase tracking-wider">
+                  <th className="text-left px-5 py-3 font-semibold">Utilisateur</th>
+                  <th className="text-left px-4 py-3 font-semibold">Code</th>
+                  <th className="text-center px-4 py-3 font-semibold">Référés</th>
+                  <th className="text-right px-4 py-3 font-semibold">Gains</th>
+                  <th className="text-center px-4 py-3 font-semibold">Commission</th>
+                  <th className="text-center px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">

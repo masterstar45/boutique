@@ -121,9 +121,9 @@ export function AdminAdmins() {
 
   return (
     <AdminLayout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-display font-black text-white">Admins & Crédits</h1>
-        <p className="text-muted-foreground mt-1">Gérer les accès administrateurs et créditer des clients.</p>
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Admins & Crédits</h1>
+        <p className="text-muted-foreground text-sm mt-1">Gérer les accès administrateurs et créditer des clients.</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -146,7 +146,7 @@ export function AdminAdmins() {
               <input
                 type="text"
                 value={creditTelegramId}
-                onChange={e => setCreditResult(null) || setCreditTelegramId(e.target.value)}
+                onChange={e => { setCreditResult(null); setCreditTelegramId(e.target.value); }}
                 placeholder="ex: 5818221358"
                 className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-sm"
               />

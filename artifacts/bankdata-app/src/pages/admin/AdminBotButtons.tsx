@@ -131,10 +131,10 @@ export function AdminBotButtons() {
 
   return (
     <AdminLayout>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-display font-black text-white">Boutons Bot /start</h1>
-          <p className="text-muted-foreground mt-1">Personnalisez les boutons affichés sous le message /start du bot Telegram.</p>
+          <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Boutons Bot /start</h1>
+          <p className="text-muted-foreground text-sm mt-1">Personnalisez les boutons affichés sous le message /start du bot Telegram.</p>
         </div>
         <button onClick={handleOpenNew} className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" /> Ajouter
@@ -169,15 +169,16 @@ export function AdminBotButtons() {
 
       {/* Buttons table */}
       <div className="glass-card rounded-2xl overflow-hidden border border-white/10">
+        <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-white/10 text-sm text-white/70 bg-black/30">
-              <th className="p-4 font-semibold w-12">Ordre</th>
-              <th className="p-4 font-semibold">Label</th>
-              <th className="p-4 font-semibold">URL</th>
-              <th className="p-4 font-semibold">Type</th>
-              <th className="p-4 font-semibold">Statut</th>
-              <th className="p-4 font-semibold text-right">Actions</th>
+            <tr className="border-b border-white/[0.06] text-[11px] text-white/40 uppercase tracking-wider">
+              <th className="px-4 py-3 font-semibold w-12">Ordre</th>
+              <th className="px-4 py-3 font-semibold">Label</th>
+              <th className="px-4 py-3 font-semibold">URL</th>
+              <th className="px-4 py-3 font-semibold">Type</th>
+              <th className="px-4 py-3 font-semibold">Statut</th>
+              <th className="px-4 py-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -229,6 +230,7 @@ export function AdminBotButtons() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Modal */}

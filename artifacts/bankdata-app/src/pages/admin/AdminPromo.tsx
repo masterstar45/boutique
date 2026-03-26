@@ -37,10 +37,10 @@ export function AdminPromo() {
 
   return (
     <AdminLayout>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-display font-black text-white">Codes Promo</h1>
-          <p className="text-muted-foreground mt-1">Gérez les réductions et offres.</p>
+          <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Codes Promo</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gérez les réductions et offres.</p>
         </div>
         <button onClick={() => { setForm({code: '', discountType: 'percent', discountValue: '', maxUses: '', minOrderAmount: '0', isActive: true}); setIsModalOpen(true); }} className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" /> Créer
@@ -48,21 +48,22 @@ export function AdminPromo() {
       </div>
 
       <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-white/5 text-sm text-muted-foreground bg-black/20">
-              <th className="p-4 font-semibold">Code</th>
-              <th className="p-4 font-semibold">Réduction</th>
-              <th className="p-4 font-semibold">Utilisations</th>
-              <th className="p-4 font-semibold">Statut</th>
-              <th className="p-4 font-semibold text-right">Création</th>
+            <tr className="border-b border-white/[0.06] text-[11px] text-white/40 uppercase tracking-wider">
+              <th className="px-4 sm:px-5 py-3 font-semibold">Code</th>
+              <th className="px-4 py-3 font-semibold">Réduction</th>
+              <th className="px-4 py-3 font-semibold">Utilisations</th>
+              <th className="px-4 py-3 font-semibold">Statut</th>
+              <th className="px-4 py-3 font-semibold text-right">Création</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Chargement...</td></tr>
             ) : promos.map(promo => (
-              <tr key={promo.id} className="border-b border-white/5 hover:bg-white/5">
+              <tr key={promo.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                 <td className="p-4">
                   <div className="flex items-center gap-2">
                     <Tag className="w-4 h-4 text-primary" />
@@ -87,6 +88,7 @@ export function AdminPromo() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Modal */}

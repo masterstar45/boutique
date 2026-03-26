@@ -328,10 +328,10 @@ export function AdminProducts() {
 
   return (
     <AdminLayout>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-display font-black text-white">Produits</h1>
-          <p className="text-muted-foreground mt-1">Gérez votre catalogue de données.</p>
+          <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Produits</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gérez votre catalogue de données.</p>
         </div>
         <button onClick={handleOpenNew} className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" /> Ajouter
@@ -417,23 +417,23 @@ export function AdminProducts() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-white/5 text-sm text-muted-foreground bg-black/20">
-                <th className="p-4 font-semibold">Produit</th>
-                <th className="p-4 font-semibold">Type / Pays</th>
-                <th className="p-4 font-semibold">Options de prix</th>
-                <th className="p-4 font-semibold">Stock</th>
-                <th className="p-4 font-semibold">Ventes</th>
-                <th className="p-4 font-semibold">Statut</th>
-                <th className="p-4 font-semibold text-right">Actions</th>
+              <tr className="border-b border-white/[0.06] text-[11px] text-white/40 uppercase tracking-wider">
+                <th className="px-4 sm:px-5 py-3 font-semibold">Produit</th>
+                <th className="px-4 py-3 font-semibold">Type / Pays</th>
+                <th className="px-4 py-3 font-semibold">Options de prix</th>
+                <th className="px-4 py-3 font-semibold">Stock</th>
+                <th className="px-4 py-3 font-semibold">Ventes</th>
+                <th className="px-4 py-3 font-semibold">Statut</th>
+                <th className="px-4 py-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Chargement...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Chargement...</td></tr>
               ) : filteredProducts.map(p => {
                 const { type, country } = getTypeBadge(p.tags ?? []);
                 return (
-                  <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
+                  <tr key={p.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-black/40 flex-shrink-0 overflow-hidden flex items-center justify-center text-xl">
@@ -504,7 +504,7 @@ export function AdminProducts() {
               })}
               {!isLoading && filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
+                  <td colSpan={7} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Search className="w-8 h-8 opacity-30" />
                       <p className="font-medium">
