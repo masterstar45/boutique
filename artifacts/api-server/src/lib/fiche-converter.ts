@@ -118,11 +118,95 @@ function parseTXT(text: string): FicheData[] {
     return rows;
   }
 
-  // Format 3: Single record - all lines are Key:Value or Key=Value
-  const obj: FicheData = {};
-  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  // Format 3: Detect if it's multiple records by counting key patterns
+  const allLines = text.split(/\r?\n/);
+  const keyPatterns: { [key: string]: number } = {};
   
-  for (const line of lines) {
+  for (const line of allLines) {
+    if (!line.trim()) continue;
+    const match = line.match(/^([^:=|]+)/);
+    if (match) {
+      const key = match[1].trim();
+      keyPatterns[key] = (keyPatterns[key] || 0) + 1;
+    }
+  }
+
+  // If we see each key appearing 2+ times, it's likely multiple records
+  const keyOccurrences = Object.values(keyPatterns);
+  const maxOccurrences = Math.max(...keyOccurrences, 0);
+  const estimatedRecords = maxOccurrences > 1 ? maxOccurrences : 1;
+
+  if (estimatedRecords > 1) {
+    // Try to split into chunks
+    const rows: FicheData[] = [];
+    let currentObj: FicheData = {};
+    let keyCount = 0;
+    const maxKeysPerRecord = Object.keys(keyPatterns).length / estimatedRecords;
+
+    for (const line of allLines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        if (Object.keys(currentObj).length > 0) {
+          rows.push(currentObj);
+          currentObj = {};
+          keyCount = 0;
+        }
+        continue;
+      }
+
+      if (line.includes(":")) {
+        const [key, ...valueParts] = line.split(":");
+        const keyTrim = key.trim();
+        
+        if (currentObj[keyTrim] !== undefined && keyCount > maxKeysPerRecord) {
+          // We've seen this key before in this record, start a new one
+          rows.push(currentObj);
+          currentObj = {};
+          keyCount = 0;
+        }
+        
+        currentObj[keyTrim] = valueParts.join(":").trim();
+        keyCount++;
+      } else if (line.includes("=")) {
+        const [key, ...valueParts] = line.split("=");
+        const keyTrim = key.trim();
+        
+        if (currentObj[keyTrim] !== undefined && keyCount > maxKeysPerRecord) {
+          rows.push(currentObj);
+          currentObj = {};
+          keyCount = 0;
+        }
+        
+        currentObj[keyTrim] = valueParts.join("=").trim();
+        keyCount++;
+      } else if (line.includes("|")) {
+        const [key, value] = line.split("|");
+        if (key && value) {
+          const keyTrim = key.trim();
+          if (currentObj[keyTrim] !== undefined && keyCount > maxKeysPerRecord) {
+            rows.push(currentObj);
+            currentObj = {};
+            keyCount = 0;
+          }
+          currentObj[keyTrim] = value.trim();
+          keyCount++;
+        }
+      }
+    }
+
+    if (Object.keys(currentObj).length > 0) {
+      rows.push(currentObj);
+    }
+
+    if (rows.length > 0) return rows;
+  }
+
+  // Format 4: Single record - all lines are Key:Value or Key=Value
+  const obj: FicheData = {};
+  
+  for (const line of allLines) {
+    if (!line.trim()) continue;
+    
     if (line.includes(":")) {
       const [key, ...valueParts] = line.split(":");
       obj[key.trim()] = valueParts.join(":").trim();
