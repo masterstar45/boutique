@@ -230,7 +230,7 @@ async function extractStockLines(
   count: number,
   productName: string,
   outputFormat: "txt" | "csv" | "json" = "txt",
-): Promise<{ fileBuffer: Buffer; generatedFileUrl: string; generatedFileName: string } | null> {
+): Promise<{ fileBuffer: Buffer; generatedFileUrl: string; generatedFileName: string; updatedFileUrl: string } | null> {
   try {
     const objectPath = normalizeObjectPath(fileUrl);
     logger.info({ objectPath, offset, count, productName, outputFormat }, "[stock] Reading source file");
@@ -257,9 +257,23 @@ async function extractStockLines(
     const safeName = productName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
     const generatedFileName = `${safeName}_${slice.length}_records.${exported.extension}`;
 
-    logger.info({ productName, fileName: generatedFileName, lines: slice.length, bufferSize: outputBuffer.length, format: outputFormat }, "[stock] Extraction complete");
+    // Create updated stock file without the consumed lines
+    const remainingLines = [...allLines.slice(0, offset), ...allLines.slice(offset + count)];
+    const remainingContent = remainingLines.join('\n');
+    const remainingBuffer = Buffer.from(remainingContent, 'utf-8');
+    const updatedFileUrl = await storageService.uploadObjectBuffer(remainingBuffer, 'text/plain');
 
-    return { fileBuffer: outputBuffer, generatedFileUrl, generatedFileName };
+    logger.info({
+      productName,
+      fileName: generatedFileName,
+      lines: slice.length,
+      bufferSize: outputBuffer.length,
+      format: outputFormat,
+      remainingStock: remainingLines.length,
+      updatedFileUrl,
+    }, "[stock] Extraction complete — stock file updated");
+
+    return { fileBuffer: outputBuffer, generatedFileUrl, generatedFileName, updatedFileUrl };
   } catch (err) {
     logger.error({ err, fileUrl }, '[stock] Error extracting lines');
     return null;
@@ -298,6 +312,8 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
   const fileDeliveryBuffers: Array<{ productName: string; buffer: Buffer; fileName: string }> = [];
   // Track reservations for rollback if delivery fails
   const reservations: Array<{ productId: number; recordsConsumed: number; previousStockUsed: number }> = [];
+  // Track stock file updates (productId -> new fileUrl)
+  const stockFileUpdates: Map<number, string> = new Map();
 
   // ────────────────────────────────────────────────
   // PHASE 1: Atomic stock reservation (transaction)
@@ -414,6 +430,8 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
           buffer: extracted.fileBuffer,
           fileName: extracted.generatedFileName,
         });
+        // Track the new stock file URL (stock has been consumed)
+        stockFileUpdates.set(item.productId, extracted.updatedFileUrl);
       } else {
         logger.error({ productName: item.productName, orderId, offset: currentOffset, count: recordsConsumed }, "File extraction returned null — will rollback reservation");
       }
@@ -461,8 +479,20 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
   // PHASE 4: Confirm sale OR rollback reservation
   // ────────────────────────────────────────────────
   if (deliverySuccess) {
+    // Update stock file URLs for products that had stock consumed
+    for (const [productId, updatedFileUrl] of stockFileUpdates.entries()) {
+      try {
+        await db.update(productsTable)
+          .set({ fileUrl: updatedFileUrl })
+          .where(eq(productsTable.id, productId));
+        logger.info({ productId, updatedFileUrl }, "Phase 4 — Stock file updated");
+      } catch (err) {
+        logger.error({ err, productId }, "Phase 4 — Failed to update product stock file (non-fatal)");
+      }
+    }
+
     await db.update(ordersTable).set({ status: "completed" }).where(eq(ordersTable.id, orderId));
-    logger.info({ orderId }, "Phase 4 — Sale confirmed, order completed");
+    logger.info({ orderId, filesUpdated: stockFileUpdates.size }, "Phase 4 — Sale confirmed, order completed");
 
     // Notify admin
     if (user) {
