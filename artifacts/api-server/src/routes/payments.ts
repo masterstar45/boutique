@@ -357,6 +357,7 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
   // ────────────────────────────────────────────────
   // PHASE 2: Extract files (no DB locks held)
   // ────────────────────────────────────────────────
+  let expectedFileCount = 0;
   try {
     for (const item of items) {
       const recordsConsumed = resolveRecordQuantity(
@@ -367,7 +368,23 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
 
       if (!item.productFileUrl || recordsConsumed <= 0) continue;
 
+      expectedFileCount++;
       const currentOffset = item.productStockUsed ?? 0;
+
+      // Log fileUrl and storage state for production diagnosis
+      const isGCS = storageService.isGCSConfigured();
+      const storageFilesOnDisk = isGCS ? [] : storageService.listLocalFiles();
+      logger.info({
+        orderId,
+        productName: item.productName,
+        productFileUrl: item.productFileUrl,
+        currentOffset,
+        recordsConsumed,
+        storageMode: isGCS ? "GCS" : "local-filesystem",
+        localFilesCount: isGCS ? "N/A (GCS)" : storageFilesOnDisk.length,
+        localFiles: isGCS ? "N/A (GCS)" : storageFilesOnDisk.slice(0, 5).map(f => f.id),
+      }, "Phase 2 — About to extract stock file");
+
       const extracted = await extractStockLines(
         item.productFileUrl,
         currentOffset,
@@ -398,11 +415,18 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
           fileName: extracted.generatedFileName,
         });
       } else {
-        logger.warn({ productName: item.productName }, "File extraction returned null");
+        logger.error({ productName: item.productName, orderId, offset: currentOffset, count: recordsConsumed }, "File extraction returned null — will rollback reservation");
       }
     }
   } catch (extractErr) {
     logger.error({ err: extractErr, orderId }, "Phase 2 — File extraction failed, rolling back stock");
+    await cancelReservation(reservations, orderId);
+    return;
+  }
+
+  // If we expected files but none could be extracted, rollback immediately
+  if (expectedFileCount > 0 && fileDeliveryBuffers.length === 0) {
+    logger.error({ orderId, expectedFileCount }, "Phase 2 — All file extractions failed, rolling back reservation");
     await cancelReservation(reservations, orderId);
     return;
   }
@@ -428,7 +452,7 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
         logger.error({ err, orderId }, "Phase 3 — Telegram delivery threw");
       }
     } else {
-      // No files to send (product without file) — consider success
+      // No files expected for this order (product without file) — consider success
       deliverySuccess = true;
     }
   }
