@@ -289,6 +289,16 @@ export class ObjectStorageService {
     return `/objects/uploads/${objectId}`;
   }
 
+  /**
+   * List all files in the local uploads directory (for diagnostics).
+   */
+  listLocalFiles(): Array<{ id: string; size: number }> {
+    const dir = this.getLocalUploadsDir();
+    return fs.readdirSync(dir)
+      .filter(f => !f.endsWith('.meta.json'))
+      .map(f => ({ id: f, size: fs.statSync(path.join(dir, f)).size }));
+  }
+
   async readObjectBuffer(objectPath: string): Promise<Buffer> {
     // Local storage fallback when GCS is not configured
     if (!this.isGCSConfigured()) {
@@ -296,6 +306,17 @@ export class ObjectStorageService {
       const objectId = parts[parts.length - 1];
       const dir = this.getLocalUploadsDir();
       const filePath = path.join(dir, objectId);
+
+      // Detailed diagnostic log: what we're looking for and what exists
+      const existingFiles = fs.existsSync(dir)
+        ? fs.readdirSync(dir).filter(f => !f.endsWith('.meta.json'))
+        : [];
+      console.error(
+        `[storage] readObjectBuffer: looking for "${objectId}" in "${dir}". ` +
+        `File exists: ${fs.existsSync(filePath)}. ` +
+        `Files in dir (${existingFiles.length}): ${existingFiles.slice(0, 5).join(', ')}${existingFiles.length > 5 ? '...' : ''}`
+      );
+
       if (!fs.existsSync(filePath)) {
         throw new ObjectNotFoundError();
       }

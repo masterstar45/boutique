@@ -370,6 +370,21 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
 
       expectedFileCount++;
       const currentOffset = item.productStockUsed ?? 0;
+
+      // Log fileUrl and storage state for production diagnosis
+      const isGCS = storageService.isGCSConfigured();
+      const storageFilesOnDisk = isGCS ? [] : storageService.listLocalFiles();
+      logger.info({
+        orderId,
+        productName: item.productName,
+        productFileUrl: item.productFileUrl,
+        currentOffset,
+        recordsConsumed,
+        storageMode: isGCS ? "GCS" : "local-filesystem",
+        localFilesCount: isGCS ? "N/A (GCS)" : storageFilesOnDisk.length,
+        localFiles: isGCS ? "N/A (GCS)" : storageFilesOnDisk.slice(0, 5).map(f => f.id),
+      }, "Phase 2 — About to extract stock file");
+
       const extracted = await extractStockLines(
         item.productFileUrl,
         currentOffset,
