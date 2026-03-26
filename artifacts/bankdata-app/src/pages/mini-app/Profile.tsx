@@ -58,6 +58,15 @@ export function Profile() {
     }
   };
 
+  const parseApiResponse = async (res: Response) => {
+    const raw = await res.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(raw || 'Réponse API invalide');
+    }
+  };
+
   const handleCreateDeposit = async () => {
     const parsed = parseFloat(amount);
     if (!amount || isNaN(parsed) || parsed < 1) {
@@ -71,10 +80,11 @@ export function Profile() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: parsed.toFixed(2) }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) throw new Error(data.error || 'Erreur');
+      if (!data?.payLink) throw new Error('Lien de paiement OxaPay introuvable');
       setDepositState({ step: 'paying', deposit: data });
-      if (data.payLink) openPayLink(data.payLink);
+      openPayLink(data.payLink);
       startPolling(data.id);
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
@@ -87,7 +97,8 @@ export function Profile() {
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/deposits/${depositId}/status`);
-        const data = await res.json();
+        const data = await parseApiResponse(res);
+        if (!res.ok) return;
         if (data.status === 'confirmed') {
           clearPolling();
           setDepositState({ step: 'confirmed', deposit: data });
@@ -105,7 +116,7 @@ export function Profile() {
 
   const handleCopyLink = () => {
     if (affiliate?.code) {
-      navigator.clipboard.writeText(`https://t.me/bankdata_bot?start=${affiliate.code}`);
+      navigator.clipboard.writeText(`https://t.me/bankdata667_bot?start=${affiliate.code}`);
       toast({ title: "Lien copié", description: "Votre lien d'affiliation a été copié." });
     }
   };
@@ -163,7 +174,7 @@ export function Profile() {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 p-3 bg-black/40 rounded-xl border border-white/5 text-xs font-mono text-white/50 truncate">
-              https://t.me/bankdata_bot?start={affiliate?.code || 'XXX'}
+              https://t.me/bankdata667_bot?start={affiliate?.code || 'XXX'}
             </div>
             <button onClick={handleCopyLink} className="p-3 bg-primary/20 text-primary rounded-xl hover:bg-primary/30">
               <Copy className="w-4 h-4" />
@@ -178,6 +189,7 @@ export function Profile() {
               <ShieldAlert className="w-5 h-5" /> Accéder au Panel Admin
             </Link>
           )}
+          {/* Debug page removed */}
           <button onClick={logout} className="w-full p-4 glass-card rounded-2xl flex items-center gap-3 text-rose-400 font-bold hover:bg-rose-500/10 transition-colors border-rose-500/20">
             <LogOut className="w-5 h-5" /> Déconnexion
           </button>

@@ -65,6 +65,9 @@ function getTelegramUser(): { username?: string; firstName?: string } {
   try {
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.initDataUnsafe?.user) {
+      try {
+        sessionStorage.setItem('bankdata_tg_user', JSON.stringify(tg.initDataUnsafe.user));
+      } catch {}
       return {
         username: tg.initDataUnsafe.user.username,
         firstName: tg.initDataUnsafe.user.first_name,

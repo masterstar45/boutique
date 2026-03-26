@@ -1,10 +1,88 @@
 import { Router, type IRouter } from "express";
-import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, affiliatesTable } from "@workspace/db";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodesTable, affiliatesTable, botButtonsTable } from "@workspace/db";
+import { eq, desc, sql, and, gte, asc } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
+import { getAllRubriqueCountries, isValidRubrique, setRubriqueCountries } from "../lib/rubriqueCountries";
+import { ObjectStorageService } from "../lib/objectStorage";
+
+const storageService = new ObjectStorageService();
+
+/**
+ * Normalise un chemin d'objet en /objects/...
+ */
+function normalizeObjectPath(inputPath: string): string {
+  const raw = String(inputPath || "").trim();
+  if (!raw) return raw;
+  if (raw.startsWith("/objects/")) return raw;
+  if (raw.startsWith("/api/storage/objects/")) return raw.replace("/api/storage", "");
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const url = new URL(raw);
+      if (url.pathname.startsWith("/api/storage/objects/")) return url.pathname.replace("/api/storage", "");
+      if (url.pathname.startsWith("/objects/")) return url.pathname;
+    } catch {}
+  }
+  return raw;
+}
+
+/**
+ * Lit un fichier stock et retourne le nombre de lignes non-vides.
+ */
+async function countFileLines(fileUrl: string): Promise<number> {
+  try {
+    const objectPath = normalizeObjectPath(fileUrl);
+    const buffer = await storageService.readObjectBuffer(objectPath);
+    const text = buffer.toString('utf-8');
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    return lines.length;
+  } catch (err) {
+    console.warn("[admin] Could not count file lines:", err);
+    return 0;
+  }
+}
 
 const router: IRouter = Router();
+
+let botButtonsTableEnsured = false;
+
+async function ensureBotButtonsTable(): Promise<void> {
+  if (botButtonsTableEnsured) return;
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bot_buttons (
+      id serial PRIMARY KEY,
+      label text NOT NULL,
+      url text NOT NULL,
+      is_web_app boolean NOT NULL DEFAULT false,
+      sort_order integer NOT NULL DEFAULT 0,
+      is_active boolean NOT NULL DEFAULT true,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+
+  botButtonsTableEnsured = true;
+}
+
+router.get("/admin/rubriques/countries", requireAdmin, async (_req, res): Promise<void> => {
+  const mapping = await getAllRubriqueCountries();
+  res.json({ rubriques: mapping });
+});
+
+router.put("/admin/rubriques/:rubrique/countries", requireAdmin, async (req, res): Promise<void> => {
+  const rubriqueRaw = String(req.params.rubrique || "").trim().toLowerCase();
+
+  if (!isValidRubrique(rubriqueRaw)) {
+    res.status(400).json({ error: "Rubrique invalide" });
+    return;
+  }
+
+  const countriesInput = Array.isArray(req.body?.countries) ? req.body.countries : [];
+  const updated = await setRubriqueCountries(rubriqueRaw, countriesInput);
+
+  res.json({ rubrique: rubriqueRaw, countries: updated });
+});
 
 router.get("/admin/stats", requireAdmin, async (_req, res): Promise<void> => {
   const today = new Date();
@@ -66,6 +144,7 @@ function serializeProduct(p: any) {
     priceOptions: p.priceOptions ?? [],
     stock: p.stock ?? 0,
     stockUsed: p.stockUsed ?? 0,
+    fileUrl: p.fileUrl,
     imageUrl: p.imageUrl,
     categoryId: p.categoryId,
     tags: p.tags ?? [],
@@ -77,6 +156,7 @@ function serializeProduct(p: any) {
     fileType: p.fileType,
     fileSize: p.fileSize,
     downloadLimit: p.downloadLimit,
+    downloadExpiry: p.downloadExpiry,
     totalSales: p.totalSales,
     createdAt: p.createdAt,
   };
@@ -104,12 +184,19 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
 
   const price = computeBasePrice(priceOptions);
 
+  // Auto-calculate stock from file line count if a file is uploaded
+  let computedStock = stock ?? 0;
+  if (typeof fileUrl === "string" && fileUrl.length > 0) {
+    const lineCount = await countFileLines(fileUrl);
+    if (lineCount > 0) computedStock = lineCount;
+  }
+
   const [product] = await db.insert(productsTable).values({
     name,
     description,
     price,
     priceOptions: priceOptions ?? [],
-    stock: stock ?? 0,
+    stock: computedStock,
     fileUrl: fileUrl ?? null,
     fileName: fileName ?? null,
     fileType: fileType ?? null,
@@ -134,22 +221,41 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
 
   const { name, description, priceOptions, stock, fileUrl, fileName, fileType, fileSize, categoryId, tags, imageUrl, isActive, isFeatured, isBestSeller, isNew, downloadLimit, downloadExpiry } = req.body;
 
+  const existing = await db.select().from(productsTable).where(eq(productsTable.id, id)).then(r => r[0]);
+  if (!existing) {
+    res.status(404).json({ error: "Produit introuvable" });
+    return;
+  }
+
   const price = computeBasePrice(priceOptions);
+
+  const currentStockUsed = existing.stockUsed ?? 0;
+  let parsedStock = Number.isFinite(Number(stock)) ? Number(stock) : 0;
+  const hasNewStockFile = typeof fileUrl === "string" && fileUrl.length > 0 && fileUrl !== (existing.fileUrl ?? "");
+
+  // Auto-calculate stock from file line count when a new file is uploaded
+  if (hasNewStockFile) {
+    const lineCount = await countFileLines(fileUrl);
+    if (lineCount > 0) parsedStock = lineCount;
+  }
+
+  let nextStockUsed = currentStockUsed;
+  if (hasNewStockFile) {
+    nextStockUsed = 0;
+  } else if (parsedStock < nextStockUsed) {
+    nextStockUsed = parsedStock;
+  }
 
   const [product] = await db.update(productsTable).set({
     name, description, price,
     priceOptions: priceOptions ?? [],
-    stock: stock ?? 0,
+    stock: parsedStock,
+    stockUsed: nextStockUsed,
     fileUrl, fileName, fileType, fileSize, categoryId,
     tags: tags ?? [],
     imageUrl, isActive, isFeatured, isBestSeller, isNew,
     downloadLimit, downloadExpiry,
   }).where(eq(productsTable.id, id)).returning();
-
-  if (!product) {
-    res.status(404).json({ error: "Produit introuvable" });
-    return;
-  }
 
   res.json(serializeProduct(product));
 });
@@ -484,6 +590,69 @@ router.delete("/admin/affiliates/:id", requireAdmin, async (req, res): Promise<v
   const deleted = await db.delete(affiliatesTable).where(eq(affiliatesTable.id, id)).returning();
   if (!deleted.length) {
     res.status(404).json({ error: "Affilié introuvable" });
+    return;
+  }
+  res.sendStatus(204);
+});
+
+// ── BOT BUTTONS (inline keyboard on /start) ──
+
+router.get("/admin/bot-buttons", requireAdmin, async (_req, res): Promise<void> => {
+  await ensureBotButtonsTable();
+  const buttons = await db.select().from(botButtonsTable).orderBy(asc(botButtonsTable.sortOrder), asc(botButtonsTable.id));
+  res.json({ buttons });
+});
+
+router.post("/admin/bot-buttons", requireAdmin, async (req, res): Promise<void> => {
+  await ensureBotButtonsTable();
+  const { label, url, isWebApp, sortOrder } = req.body;
+  if (!label?.trim() || !url?.trim()) {
+    res.status(400).json({ error: "label et url sont requis" });
+    return;
+  }
+  const [btn] = await db.insert(botButtonsTable).values({
+    label: label.trim(),
+    url: url.trim(),
+    isWebApp: !!isWebApp,
+    sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+    isActive: true,
+  }).returning();
+  res.status(201).json(btn);
+});
+
+router.put("/admin/bot-buttons/:id", requireAdmin, async (req, res): Promise<void> => {
+  await ensureBotButtonsTable();
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const { label, url, isWebApp, sortOrder, isActive } = req.body;
+
+  const updates: Record<string, unknown> = {};
+  if (typeof label === "string") updates.label = label.trim();
+  if (typeof url === "string") updates.url = url.trim();
+  if (typeof isWebApp === "boolean") updates.isWebApp = isWebApp;
+  if (typeof sortOrder === "number") updates.sortOrder = sortOrder;
+  if (typeof isActive === "boolean") updates.isActive = isActive;
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Rien à modifier" });
+    return;
+  }
+
+  const [updated] = await db.update(botButtonsTable).set(updates).where(eq(botButtonsTable.id, id)).returning();
+  if (!updated) {
+    res.status(404).json({ error: "Bouton introuvable" });
+    return;
+  }
+  res.json(updated);
+});
+
+router.delete("/admin/bot-buttons/:id", requireAdmin, async (req, res): Promise<void> => {
+  await ensureBotButtonsTable();
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  const deleted = await db.delete(botButtonsTable).where(eq(botButtonsTable.id, id)).returning();
+  if (!deleted.length) {
+    res.status(404).json({ error: "Bouton introuvable" });
     return;
   }
   res.sendStatus(204);

@@ -1,8 +1,21 @@
 import { Router, type IRouter } from "express";
 import { db, productsTable, categoriesTable } from "@workspace/db";
 import { eq, and, ilike, isTrue } from "drizzle-orm";
+import { getRubriqueCountries, isValidRubrique } from "../lib/rubriqueCountries";
 
 const router: IRouter = Router();
+
+router.get("/rubriques/:rubrique/countries", async (req, res): Promise<void> => {
+  const rubriqueRaw = String(req.params.rubrique || "").trim().toLowerCase();
+
+  if (!isValidRubrique(rubriqueRaw)) {
+    res.status(400).json({ error: "Rubrique invalide" });
+    return;
+  }
+
+  const countries = await getRubriqueCountries(rubriqueRaw);
+  res.json({ rubrique: rubriqueRaw, countries });
+});
 
 router.get("/products", async (req, res): Promise<void> => {
   const { categoryId, search, featured } = req.query;

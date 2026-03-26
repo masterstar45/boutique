@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken, JwtPayload } from "../lib/jwt";
+import { db, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -24,11 +26,25 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  requireAuth(req, res, () => {
-    if (!req.user?.isAdmin) {
-      res.status(403).json({ error: "Accès refusé" });
+  requireAuth(req, res, async () => {
+    if (req.user?.isAdmin) {
+      next();
       return;
     }
-    next();
+
+    try {
+      const user = await db.select({ isAdmin: usersTable.isAdmin })
+        .from(usersTable)
+        .where(eq(usersTable.id, req.user!.userId))
+        .then((r) => r[0]);
+
+      if (user?.isAdmin) {
+        next();
+        return;
+      }
+    } catch {
+    }
+
+    res.status(403).json({ error: "Accès refusé" });
   });
 }

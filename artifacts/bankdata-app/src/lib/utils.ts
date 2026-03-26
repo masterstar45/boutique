@@ -28,3 +28,14 @@ export function formatDate(dateString: string): string {
     minute: '2-digit'
   }).format(new Date(dateString));
 }
+
+/**
+ * Resolve a relative /api/... image URL to an absolute URL using the API base.
+ * External URLs (https://...) and empty values are returned as-is.
+ */
+export function resolveImageUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  if (!url.startsWith('/api/')) return url;
+  const base = typeof window !== 'undefined' ? (window as any).__API_BASE_URL : '';
+  return base ? `${base}${url}` : url;
+}

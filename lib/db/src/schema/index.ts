@@ -5,3 +5,5 @@ export * from "./payments";
 export * from "./deposits";
 export * from "./downloads";
 export * from "./promo";
+export * from "./rubrique-countries";
+export * from "./bot-buttons";

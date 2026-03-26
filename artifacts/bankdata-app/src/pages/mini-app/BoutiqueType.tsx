@@ -41,12 +41,35 @@ const PRODUCT_TYPES: Record<string, { label: string; emoji: string; color: strin
 export function BoutiqueType({ params }: { params: { type: string } }) {
   const [search, setSearch] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<{ value: string; flag: string; name: string } | null>(null);
+  const [allowedCountryValues, setAllowedCountryValues] = useState<string[] | null>(null);
 
   const typeKey = params.type as keyof typeof PRODUCT_TYPES;
   const typeInfo = PRODUCT_TYPES[typeKey];
 
   const { data: prodData, isLoading } = useListProducts({});
   const allProducts = prodData?.products || [];
+
+  React.useEffect(() => {
+    let active = true;
+    const loadAllowedCountries = async () => {
+      try {
+        const res = await fetch(`/api/rubriques/${typeKey}/countries`);
+        const data = await res.json();
+        if (!active) return;
+        if (res.ok && Array.isArray(data?.countries)) {
+          setAllowedCountryValues(data.countries);
+          return;
+        }
+      } catch {
+      }
+      if (active) setAllowedCountryValues([]);
+    };
+
+    if (typeInfo) loadAllowedCountries();
+    return () => {
+      active = false;
+    };
+  }, [typeKey, typeInfo]);
 
   const filteredProducts = useMemo(() => {
     if (!selectedCountry) return [];
@@ -57,9 +80,11 @@ export function BoutiqueType({ params }: { params: { type: string } }) {
     );
   }, [allProducts, typeKey, selectedCountry]);
 
-  const filteredCountries = COUNTRIES.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCountries = COUNTRIES.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    const isAllowed = !allowedCountryValues || allowedCountryValues.length === 0 || allowedCountryValues.includes(c.value);
+    return matchesSearch && isAllowed;
+  });
 
   if (!typeInfo) {
     return (

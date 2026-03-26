@@ -5,7 +5,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCreateOrder, useValidatePromo } from '@workspace/api-client-react';
 import { useMutation } from '@tanstack/react-query';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, resolveImageUrl } from '@/lib/utils';
 import { Trash2, Plus, Minus, Tag, ChevronRight, CheckCircle2, ShoppingCart, Package, Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -148,7 +148,7 @@ export function Cart() {
                   <div key={`${item.product.id}_${optLabel ?? ''}`} className="glass-card p-4 rounded-2xl flex gap-4">
                     <div className="w-20 h-20 bg-black/40 rounded-xl overflow-hidden flex-shrink-0">
                       {item.product.imageUrl ? (
-                        <img src={item.product.imageUrl} className="w-full h-full object-cover" alt={item.product.name} />
+                        <img src={resolveImageUrl(item.product.imageUrl)} className="w-full h-full object-cover" alt={item.product.name} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
                       )}

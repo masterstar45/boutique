@@ -1,7 +1,11 @@
 import TelegramBot from "node-telegram-bot-api";
 import { logger } from "./logger";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, botButtonsTable } from "@workspace/db";
+import { eq, asc } from "drizzle-orm";
+import { ObjectStorageService } from "./objectStorage";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -9,6 +13,7 @@ const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 let bot: TelegramBot | null = null;
 let botUsername: string | null = null;
 let miniAppBaseUrl: string | null = null;
+const storageService = new ObjectStorageService();
 
 export function getBot(): TelegramBot | null {
   return bot;
@@ -97,22 +102,39 @@ export async function sendStartMessage(
 
   await bot.sendMessage(chatId, text, {
     reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "🛒 Accéder à la boutique",
-            web_app: { url: miniAppUrl },
-          },
-        ],
-        [
-          {
-            text: "💰 Recharger mon solde",
-            callback_data: "recharge_balance",
-          },
-        ],
-      ],
+      inline_keyboard: await buildStartKeyboard(miniAppUrl),
     },
   });
+}
+
+async function buildStartKeyboard(miniAppUrl: string): Promise<TelegramBot.InlineKeyboardButton[][]> {
+  // Default button always present
+  const defaultBtn: TelegramBot.InlineKeyboardButton = {
+    text: "🛒 Accéder à la boutique",
+    web_app: { url: miniAppUrl },
+  };
+
+  try {
+    const buttons = await db.select().from(botButtonsTable)
+      .where(eq(botButtonsTable.isActive, true))
+      .orderBy(asc(botButtonsTable.sortOrder), asc(botButtonsTable.id));
+
+    if (buttons.length === 0) {
+      return [[defaultBtn]];
+    }
+
+    const keyboard: TelegramBot.InlineKeyboardButton[][] = [[defaultBtn]];
+    for (const btn of buttons) {
+      const button: TelegramBot.InlineKeyboardButton = btn.isWebApp
+        ? { text: btn.label, web_app: { url: btn.url } }
+        : { text: btn.label, url: btn.url };
+      keyboard.push([button]);
+    }
+    return keyboard;
+  } catch (err) {
+    logger.warn({ err }, "Failed to load bot buttons from DB, using default");
+    return [[defaultBtn]];
+  }
 }
 
 export async function sendOrderConfirmation(
@@ -133,7 +155,108 @@ export async function sendPaymentConfirmation(
 ): Promise<void> {
   if (!bot) return;
   const text = `🎉 *Paiement reçu !*\n\n✅ Votre paiement de *${amount}* a été confirmé.\n📦 Commande #${orderId} prête au téléchargement !`;
-  await bot.sendMessage(parseInt(telegramId), text, { parse_mode: "Markdown" });
+  try {
+    await bot.sendMessage(parseInt(telegramId), text, { parse_mode: "Markdown" });
+  } catch (err) {
+    logger.warn({ err, telegramId }, "Failed to send payment confirmation with Markdown, retrying plain text");
+    await bot.sendMessage(parseInt(telegramId), text);
+  }
+}
+
+export async function sendOrderDeliveryLinks(
+  telegramId: string,
+  orderId: number,
+  amount: string,
+  links: Array<{ productName: string; url: string }>,
+): Promise<void> {
+  if (!bot || links.length === 0) return;
+
+  const lines = links.map((item, index) => `${index + 1}. ${item.productName}\n${item.url}`).join("\n\n");
+  const text =
+`╔══════════════════════════════╗
+║      📦 COMMANDE LIVRÉE      ║
+╚══════════════════════════════╝
+
+✅ Paiement confirmé pour la commande #${orderId}
+💰 Montant : ${parseFloat(amount).toFixed(2)} €
+
+🔗 Liens de téléchargement :
+
+${lines}
+
+⚠️ Ces liens sont temporaires et limités en nombre de téléchargements.`;
+
+  await bot.sendMessage(parseInt(telegramId), text);
+}
+
+export async function sendOrderDeliveryFiles(
+  telegramId: string,
+  orderId: number,
+  files: Array<{ productName: string; buffer: Buffer; fileName: string }>,
+): Promise<{ sent: number; total: number }> {
+  if (!bot) {
+    logger.warn({ telegramId, orderId }, "Bot not initialized, cannot send delivery files");
+    return { sent: 0, total: files.length };
+  }
+
+  if (files.length === 0) {
+    logger.warn({ telegramId, orderId }, "No files to deliver");
+    return { sent: 0, total: 0 };
+  }
+
+  logger.info({ telegramId, orderId, fileCount: files.length }, "Starting direct buffer file delivery");
+
+  const chatId = Number(telegramId);
+  if (!Number.isFinite(chatId)) {
+    logger.error({ telegramId, orderId }, "Invalid telegramId for file delivery");
+    return { sent: 0, total: files.length };
+  }
+
+  let sent = 0;
+
+  for (const file of files) {
+    // Write buffer to a temp file, then send the stream — most reliable with node-telegram-bot-api
+    const tmpDir = os.tmpdir();
+    const tmpFile = path.join(tmpDir, `tg_${orderId}_${Date.now()}_${file.fileName}`);
+    try {
+      logger.info({ telegramId, orderId, productName: file.productName, fileName: file.fileName, bufferSize: file.buffer.length }, "Sending file via temp file to Telegram");
+
+      fs.writeFileSync(tmpFile, file.buffer);
+      const stream = fs.createReadStream(tmpFile);
+
+      await bot.sendDocument(chatId, stream, {
+        caption: `📦 Commande #${orderId}\n🗂 Produit: ${file.productName}`,
+      }, {
+        filename: file.fileName,
+        contentType: "text/plain",
+      });
+
+      logger.info({ telegramId, orderId, productName: file.productName }, "File sent successfully via stream");
+      sent += 1;
+    } catch (err) {
+      logger.error({ err, telegramId, orderId, productName: file.productName, fileName: file.fileName }, "Failed to deliver file via stream, trying text fallback");
+
+      // Fallback: send as plain text message if the content is small enough (<4000 chars)
+      try {
+        const textContent = file.buffer.toString("utf-8").trim();
+        if (textContent.length > 0 && textContent.length < 4000) {
+          await bot.sendMessage(chatId, `📦 Commande #${orderId}\n🗂 Produit: ${file.productName}\n\n${textContent}`);
+          logger.info({ telegramId, orderId, productName: file.productName }, "Content sent as text message fallback");
+          sent += 1;
+        } else {
+          logger.warn({ telegramId, orderId, productName: file.productName, contentLength: textContent.length }, "Text fallback skipped — content too large or empty");
+        }
+      } catch (fallbackErr) {
+        logger.error({ err: fallbackErr, telegramId, orderId, productName: file.productName }, "Text fallback also failed");
+      }
+    } finally {
+      // Clean up temp file
+      try { fs.unlinkSync(tmpFile); } catch {} 
+    }
+  }
+
+  logger.info({ telegramId, orderId, sent, total: files.length }, `File delivery completed: ${sent}/${files.length}`);
+  return { sent, total: files.length };
 }
 
 async function notifyAdmin(text: string): Promise<void> {
@@ -143,7 +266,12 @@ async function notifyAdmin(text: string): Promise<void> {
     try {
       await bot.sendMessage(parseInt(id), text, { parse_mode: "Markdown" });
     } catch (err) {
-      logger.error({ err, chatId: id }, "Failed to send admin Telegram notification");
+      logger.warn({ err, chatId: id }, "Failed to send admin Telegram notification with Markdown, retrying plain text");
+      try {
+        await bot.sendMessage(parseInt(id), text);
+      } catch (retryErr) {
+        logger.error({ err: retryErr, chatId: id }, "Failed to send admin Telegram notification");
+      }
     }
   }
 }
@@ -272,8 +400,15 @@ Vous pouvez maintenant effectuer vos achats sur *BANK\\$DATA* 🛒`;
       }
     : undefined;
 
-  await bot.sendMessage(parseInt(telegramId), text, {
-    parse_mode: "Markdown",
-    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-  });
+  try {
+    await bot.sendMessage(parseInt(telegramId), text, {
+      parse_mode: "Markdown",
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    });
+  } catch (err) {
+    logger.warn({ err, telegramId }, "Failed to send deposit confirmation with Markdown, retrying plain text");
+    await bot.sendMessage(parseInt(telegramId), text, {
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    });
+  }
 }

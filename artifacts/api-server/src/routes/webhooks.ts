@@ -4,9 +4,37 @@ import { db, usersTable, paymentsTable, ordersTable, depositsTable } from "@work
 import { eq } from "drizzle-orm";
 import { processConfirmedPayment } from "./payments";
 import { processConfirmedDeposit } from "./deposits";
+import { verifyWebhookSignature } from "../lib/oxapay";
 import { logger } from "../lib/logger";
+import { getPublicMiniAppUrl } from "../lib/public-url";
 
 const router: IRouter = Router();
+const OXAPAY_STRICT_HMAC = process.env.OXAPAY_STRICT_HMAC === "true";
+
+const ADMIN_IDS: Set<string> = new Set(
+  (process.env.TELEGRAM_ADMIN_CHAT_ID ?? "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean),
+);
+
+function isAdminTelegramId(telegramId: string): boolean {
+  return ADMIN_IDS.has(telegramId);
+}
+
+function pickString(body: any, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = body?.[key];
+    if (value === null || value === undefined) continue;
+    const asString = String(value).trim();
+    if (asString.length > 0) return asString;
+  }
+  return undefined;
+}
+
+function normalizeStatus(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
 
 router.post("/telegram-webhook", async (req, res): Promise<void> => {
   const bot = getBot();
@@ -28,6 +56,7 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
     }
 
     const telegramId = String(from.id);
+    const shouldBeAdmin = isAdminTelegramId(telegramId);
 
     let user = await db.select().from(usersTable)
       .where(eq(usersTable.telegramId, telegramId))
@@ -57,7 +86,7 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
         lastName: from.last_name ?? null,
         balance: "0",
         affiliateCode: `REF${telegramId.slice(-4)}${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
-        isAdmin: false,
+        isAdmin: shouldBeAdmin,
         photoUrl,
       }).returning();
       user = created;
@@ -69,12 +98,13 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
         firstName: from.first_name ?? user.firstName,
         lastName: from.last_name ?? user.lastName,
         ...(photoUrl ? { photoUrl } : {}),
+        ...(shouldBeAdmin && !user.isAdmin ? { isAdmin: true } : {}),
       }).where(eq(usersTable.telegramId, telegramId)).returning();
       user = updated;
     }
 
-    const domains = process.env.REPLIT_DOMAINS?.split(",")[0];
-    const miniAppUrl = domains ? `https://${domains}/` : "https://t.me";
+    const publicMiniAppUrl = getPublicMiniAppUrl();
+    const miniAppUrl = publicMiniAppUrl ? `${publicMiniAppUrl}/` : "https://t.me";
 
     try {
       await sendStartMessage(chatId, from.username, from.id, user.balance ?? "0", miniAppUrl);
@@ -108,9 +138,25 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
 
   logger.info({ body }, "Payment webhook received");
 
-  if (body.status === "Paid" || body.status === "Confirming") {
-    const trackId = body.trackId;
+  // Verify OxaPay webhook signature
+  const hmacHeader = pickString(req.headers, ["hmac", "x-hmac", "x-signature", "signature"]);
+  if (hmacHeader && !verifyWebhookSignature(body, hmacHeader)) {
+    logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook: invalid HMAC signature");
+    if (OXAPAY_STRICT_HMAC) {
+      res.sendStatus(403);
+      return;
+    }
+  }
+
+  const status = normalizeStatus(body.status);
+  const isPaidLike = status === "paid" || status === "confirming";
+  const isExpired = status === "expired";
+
+  if (isPaidLike) {
+    const trackId = pickString(body, ["trackId", "track_id", "trackID"]);
+    const txHash = pickString(body, ["txHash", "tx_hash", "txID", "txid", "txId"]);
     if (!trackId) {
+      logger.warn({ body }, "Payment webhook ignored: missing trackId");
       res.sendStatus(200);
       return;
     }
@@ -122,7 +168,7 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
     if (payment && payment.status === "pending") {
       await db.update(paymentsTable).set({
         status: "confirmed",
-        txHash: body.txHash ?? null,
+        txHash: txHash ?? null,
         confirmedAt: new Date(),
       }).where(eq(paymentsTable.id, payment.id));
 
@@ -133,13 +179,15 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
         .then(r => r[0]);
 
       if (deposit && deposit.status === "pending") {
-        await processConfirmedDeposit(deposit.id, body.txHash);
+        await processConfirmedDeposit(deposit.id, txHash);
+      } else {
+        logger.warn({ trackId }, "Payment webhook: no pending payment/deposit found for trackId");
       }
     }
   }
 
-  if (body.status === "Expired") {
-    const trackId = body.trackId;
+  if (isExpired) {
+    const trackId = pickString(body, ["trackId", "track_id", "trackID"]);
     if (trackId) {
       const payment = await db.select().from(paymentsTable)
         .where(eq(paymentsTable.trackId, trackId))

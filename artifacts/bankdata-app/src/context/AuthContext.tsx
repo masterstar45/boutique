@@ -20,6 +20,105 @@ const AuthContext = createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
+type TelegramLikeUser = {
+  id: number;
+  first_name?: string;
+  username?: string;
+  last_name?: string;
+  photo_url?: string;
+};
+
+function getCachedTelegramUser(): TelegramLikeUser | null {
+  try {
+    const raw = sessionStorage.getItem('bankdata_tg_user');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.id) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function buildProvisionalUser(tgUser: TelegramLikeUser): UserProfile {
+  return {
+    id: -1,
+    telegramId: String(tgUser.id),
+    username: tgUser.username,
+    firstName: tgUser.first_name ?? 'User',
+    lastName: tgUser.last_name,
+    photoUrl: tgUser.photo_url,
+    balance: '0',
+    loyaltyPoints: 0,
+    affiliateCode: undefined,
+    isAdmin: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function parseTelegramUserFromInitData(initData: string): TelegramLikeUser | null {
+  try {
+    const params = new URLSearchParams(initData);
+    const rawUser = params.get('user');
+    if (!rawUser) return null;
+    const user = JSON.parse(rawUser);
+    if (!user?.id) return null;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isLikelyTelegramWebView(): boolean {
+  const ua = navigator.userAgent || "";
+  return /Telegram/i.test(ua) || Boolean((window as any).Telegram?.WebApp);
+}
+
+async function resolveTelegramContext(): Promise<{ initData: string; tgUser: TelegramLikeUser } | null> {
+  const initDataFromQuery = new URLSearchParams(window.location.search).get('tgWebAppData');
+  const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
+  const initDataFromHash = hashParams.get('tgWebAppData');
+  const initDataFromSession = sessionStorage.getItem('bankdata_tg_init_data');
+
+  // Try for up to 40 attempts × 150ms = 6 seconds total
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const tg = (window as any).Telegram?.WebApp;
+    
+    // Try to initialize the WebApp
+    if (tg) {
+      try {
+        if (typeof tg.ready === 'function') {
+          tg.ready();
+        }
+      } catch {}
+    }
+
+    // Try to get initData from multiple sources
+    const initDataFromSDK = tg?.initData;
+    const initData = initDataFromSDK || initDataFromQuery || initDataFromHash || initDataFromSession || '';
+    
+    // Try to get user from multiple sources
+    const userFromSDK = tg?.initDataUnsafe?.user;
+    const userFromCache = getCachedTelegramUser();
+    const userFromUrl = initData ? parseTelegramUserFromInitData(initData) : null;
+    const tgUser = userFromSDK || userFromUrl || userFromCache;
+
+    if (tgUser) {
+      if (initData) {
+        sessionStorage.setItem('bankdata_tg_init_data', initData);
+      }
+      return { initData, tgUser };
+    }
+
+    await sleep(150); // 150ms between attempts
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('bankdata_token'));
@@ -30,16 +129,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       // 1. If Telegram WebApp is available, always authenticate via Telegram
-      //    This ensures the real Telegram identity is used, never a cached dev token
-      const tg = (window as any).Telegram?.WebApp;
+      let telegramContext = await resolveTelegramContext();
 
-      // Signal to Telegram that the app is ready to be displayed
-      if (tg?.ready) tg.ready();
+      if (!telegramContext) {
+        const cachedUser = getCachedTelegramUser();
+        if (cachedUser) {
+          telegramContext = { initData: '', tgUser: cachedUser };
+        }
+      }
 
-      const initData = tg?.initData;
-      const tgUser = tg?.initDataUnsafe?.user;
+      if (!telegramContext && isLikelyTelegramWebView()) {
+        for (let i = 0; i < 120; i++) {
+          telegramContext = await resolveTelegramContext();
+          if (telegramContext) {
+            break;
+          }
+          await sleep(250);
+        }
+      }
 
-      if (initData && tgUser) {
+      if (telegramContext) {
+        const { initData, tgUser } = telegramContext;
+
+        // Keep existing session if present (helps admin panel paths while Telegram auth refreshes)
+        const storedUserRaw = localStorage.getItem('bankdata_user');
+        const storedToken = localStorage.getItem('bankdata_token');
+        if (storedUserRaw && storedToken) {
+          try {
+            const parsedStoredUser = JSON.parse(storedUserRaw);
+            setToken(storedToken);
+            setUser(parsedStoredUser);
+          } catch {
+            const provisionalUser = buildProvisionalUser(tgUser);
+            setUser(provisionalUser);
+          }
+        } else {
+          const provisionalUser = buildProvisionalUser(tgUser);
+          setUser(provisionalUser);
+        }
+
         try {
           const response = await telegramAuth.mutateAsync({
             data: {
@@ -87,7 +215,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.removeItem('bankdata_token');
             localStorage.removeItem('bankdata_user');
           }
-        } catch {
+        } catch (err) {
+          console.error('Token validation failed:', err);
           if (storedUser) {
             setToken(storedToken);
             setUser(JSON.parse(storedUser));

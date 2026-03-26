@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { ShoppingCart, Star, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
 import type { ProductSummary } from '@workspace/api-client-react';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, resolveImageUrl } from '@/lib/utils';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -57,7 +57,7 @@ export function ProductCard({ product }: { product: ProductSummary }) {
         {/* Image / Icon */}
         <div className="h-40 w-full bg-gradient-to-br from-white/5 to-transparent relative flex items-center justify-center border-b border-white/5 overflow-hidden">
           {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <img src={resolveImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
           ) : (
             <div className="text-6xl group-hover:scale-110 transition-transform duration-500">
               📦

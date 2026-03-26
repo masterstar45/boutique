@@ -2,11 +2,12 @@ import React, { useRef, useState, useMemo } from 'react';
 import { useAdminListProducts, useAdminCreateProduct, useAdminUpdateProduct, useAdminDeleteProduct } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, resolveImageUrl } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, FileCheck, Image as ImageIcon, Loader2, Link, Search, PlusCircle, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUpload } from '@workspace/object-storage-web';
 import { COUNTRIES as RAW_COUNTRIES } from '@/lib/countries';
+import type { ProductListResponse } from '@workspace/api-client-react';
 
 const COUNTRIES = RAW_COUNTRIES.map(c => ({ value: c.value, label: `${c.flag} ${c.name}` }));
 
@@ -22,6 +23,7 @@ const EMPTY_PRICE_OPTION: PriceOption = { label: '', price: '', quantity: '' };
 
 const EMPTY_FORM = {
   name: '', description: '', fileUrl: '',
+  fileName: '', fileType: '', fileSize: 0,
   imageUrl: '', isActive: true, isFeatured: false,
   isBestSeller: false, isNew: true,
   productType: '', country: '',
@@ -52,22 +54,51 @@ function formatBytes(bytes: number): string {
 
 interface FileUploadButtonProps {
   value: string;
-  onChange: (url: string) => void;
+  onChange: (url: string, metadata?: { fileName: string; fileType: string; fileSize: number }) => void;
   accept?: string;
   label: string;
   icon: React.ReactNode;
   hint?: string;
+  initialFileName?: string;
+  initialFileSize?: number;
+  initialFileType?: string;
 }
 
-function FileUploadButton({ value, onChange, accept, label, icon, hint }: FileUploadButtonProps) {
+function FileUploadButton({ value, onChange, accept, label, icon, hint, initialFileName, initialFileSize, initialFileType }: FileUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploadedFileName, setUploadedFileName] = useState('');
-  const [uploadedFileSize, setUploadedFileSize] = useState(0);
+  const [uploadedFileName, setUploadedFileName] = useState(initialFileName || '');
+  const [uploadedFileSize, setUploadedFileSize] = useState(initialFileSize || 0);
+  const [uploadedFileType, setUploadedFileType] = useState(initialFileType || '');
   const { toast } = useToast();
+
+  // Synchronize with form data when value changes (e.g., editing existing product)
+  React.useEffect(() => {
+    if (value && value.startsWith('/api/storage')) {
+      // Value exists, try to extract filename from storage path
+      // If no uploadedFileName set yet, use a default based on the path
+      if (!uploadedFileName && initialFileName) {
+        setUploadedFileName(initialFileName);
+      }
+    }
+  }, [value, initialFileName]);
 
   const { uploadFile, isUploading, progress } = useUpload({
     onSuccess: (response) => {
-      onChange(`/api/storage${response.objectPath}`);
+      if (!response.objectPath) {
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Chemin d\'objet invalide' });
+        return;
+      }
+      const fileUrl = `/api/storage${response.objectPath}`;
+      const metadata = response.metadata ? {
+        fileName: response.metadata.name || uploadedFileName,
+        fileType: response.metadata.contentType || uploadedFileType,
+        fileSize: response.metadata.size || uploadedFileSize,
+      } : {
+        fileName: uploadedFileName,
+        fileType: uploadedFileType,
+        fileSize: uploadedFileSize,
+      };
+      onChange(fileUrl, metadata);
       toast({ title: '✅ Fichier uploadé', description: `Stocké à ${response.objectPath}` });
     },
     onError: (err) => {
@@ -80,6 +111,7 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint }: FileUp
     if (!file) return;
     setUploadedFileName(file.name);
     setUploadedFileSize(file.size);
+    setUploadedFileType(file.type || 'application/octet-stream');
     await uploadFile(file);
     e.target.value = '';
   };
@@ -128,7 +160,7 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint }: FileUp
             </div>
             <button
               type="button"
-              onClick={e => { e.stopPropagation(); onChange(''); setUploadedFileName(''); setUploadedFileSize(0); }}
+              onClick={e => { e.stopPropagation(); onChange(''); setUploadedFileName(''); setUploadedFileSize(0); setUploadedFileType(''); }}
               className="p-1 hover:bg-white/10 rounded-lg text-white/50 hover:text-rose-400"
             >
               <X className="w-4 h-4" />
@@ -180,7 +212,7 @@ export function AdminProducts() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active');
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -207,7 +239,8 @@ export function AdminProducts() {
       : [{ label: '', price: p.price ?? '', quantity: '' }];
     setForm({
       name: p.name, description: p.description,
-      fileUrl: p.fileUrl || '', imageUrl: p.imageUrl || '',
+      fileUrl: p.fileUrl || '', fileName: p.fileName || '', fileType: p.fileType || '', fileSize: p.fileSize || 0,
+      imageUrl: p.imageUrl || '',
       isActive: p.isActive, isFeatured: p.isFeatured,
       isBestSeller: p.isBestSeller, isNew: p.isNew,
       productType, country,
@@ -216,13 +249,27 @@ export function AdminProducts() {
     });
     setEditingId(p.id);
     setIsModalOpen(true);
-  };
+  };;
 
   const handleDelete = async (id: number) => {
     if (confirm('Supprimer ce produit ?')) {
-      await deleteMut.mutateAsync({ id });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
-      toast({ title: 'Supprimé', description: 'Le produit a été supprimé.' });
+      try {
+        await deleteMut.mutateAsync({ id });
+        queryClient.setQueryData(['/api/admin/products'], (current: ProductListResponse | undefined) => {
+          if (!current?.products) return current;
+          return {
+            ...current,
+            products: current.products.map((product) =>
+              product.id === id ? { ...product, isActive: false } : product,
+            ),
+          };
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+        toast({ title: 'Supprimé', description: 'Le produit a été retiré des produits actifs.' });
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Impossible de supprimer le produit.' });
+      }
     }
   };
 
@@ -250,7 +297,8 @@ export function AdminProducts() {
       name: form.name, description: form.description,
       priceOptions: validOptions,
       stock: form.stock ? parseInt(form.stock, 10) : 0,
-      fileUrl: form.fileUrl || null, imageUrl: form.imageUrl || null,
+      fileUrl: form.fileUrl || null, fileName: form.fileName || null, fileType: form.fileType || null, fileSize: form.fileSize || null,
+      imageUrl: form.imageUrl || null,
       isActive: form.isActive, isFeatured: form.isFeatured,
       isBestSeller: form.isBestSeller, isNew: form.isNew,
       tags,
@@ -335,15 +383,15 @@ export function AdminProducts() {
             onChange={e => setFilterStatus(e.target.value)}
             className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
           >
-            <option value="">📋 Tous les statuts</option>
             <option value="active">✅ Actifs</option>
+            <option value="">📋 Tous les statuts</option>
             <option value="inactive">⛔ Inactifs</option>
           </select>
 
           {/* Reset button */}
           {activeFiltersCount > 0 && (
             <button
-              onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus(''); }}
+              onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus('active'); }}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-sm font-bold hover:bg-rose-500/25 transition-colors"
             >
               <X className="w-3.5 h-3.5" /> Réinitialiser
@@ -389,7 +437,7 @@ export function AdminProducts() {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-black/40 flex-shrink-0 overflow-hidden flex items-center justify-center text-xl">
-                          {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover" /> : (type?.label.split(' ')[0] ?? '📦')}
+                          {p.imageUrl ? <img src={resolveImageUrl(p.imageUrl)} className="w-full h-full object-cover" /> : (type?.label.split(' ')[0] ?? '📦')}
                         </div>
                         <div>
                           <p className="font-bold text-white text-sm line-clamp-1">{p.name}</p>
@@ -464,7 +512,7 @@ export function AdminProducts() {
                       </p>
                       {activeFiltersCount > 0 && (
                         <button
-                          onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus(''); }}
+                          onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus('active'); }}
                           className="text-xs text-primary hover:underline mt-1"
                         >
                           Réinitialiser les filtres
@@ -625,10 +673,13 @@ export function AdminProducts() {
                 <FileUploadButton
                   label="Fichier de stock (données à distribuer)"
                   value={form.fileUrl}
-                  onChange={v => setForm({ ...form, fileUrl: v })}
+                  onChange={(v, metadata) => setForm({ ...form, fileUrl: v, fileName: metadata?.fileName || '', fileType: metadata?.fileType || '', fileSize: metadata?.fileSize || 0 })}
                   accept=".txt,.csv"
                   icon={<Upload className="w-5 h-5 text-white/50" />}
                   hint="TXT ou CSV — 1 enregistrement par ligne — max 50 MB"
+                  initialFileName={form.fileName}
+                  initialFileSize={form.fileSize}
+                  initialFileType={form.fileType}
                 />
                 <p className="text-[11px] text-amber-400/70 bg-amber-500/10 rounded-lg px-3 py-2 border border-amber-500/20">
                   ⚡ À chaque commande, un fichier TXT est généré automatiquement avec le nombre d'enregistrements commandés, puis livré au client. Le stock diminue à chaque vente.

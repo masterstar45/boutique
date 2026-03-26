@@ -63,8 +63,13 @@
 }
 
 @layer base {
+  html, body, #root {
+    min-height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground antialiased font-sans selection:bg-primary/30 selection:text-primary;
+    min-height: 100dvh;
     background-image: 
       radial-gradient(circle at 15% 50%, rgba(234, 179, 8, 0.03) 0%, transparent 50%),
       radial-gradient(circle at 85% 30%, rgba(234, 179, 8, 0.04) 0%, transparent 50%);

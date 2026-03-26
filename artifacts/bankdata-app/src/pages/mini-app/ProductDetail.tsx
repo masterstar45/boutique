@@ -4,7 +4,7 @@ import { useGetProduct } from '@workspace/api-client-react';
 import { MiniAppLayout } from '@/components/layout/MiniAppLayout';
 import { useCart, type SelectedOption } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, resolveImageUrl } from '@/lib/utils';
 import { ChevronLeft, ShoppingCart, ShieldCheck, Database, CheckCircle2, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -72,7 +72,7 @@ export function ProductDetail() {
       {/* Header Image */}
       <div className="relative h-[38vh] w-full bg-gradient-to-b from-black/50 to-background border-b border-white/10 flex items-center justify-center overflow-hidden">
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover opacity-60" />
+          <img src={resolveImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-cover opacity-60" />
         ) : (
           <div className="text-8xl opacity-50">📦</div>
         )}

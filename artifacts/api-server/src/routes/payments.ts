@@ -1,10 +1,14 @@
 import { Router, type IRouter } from "express";
-import { db, paymentsTable, ordersTable, orderItemsTable, productsTable, downloadsTable, usersTable } from "@workspace/db";
+import { db, pool, paymentsTable, ordersTable, orderItemsTable, productsTable, downloadsTable, usersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { requireAuth } from "../middlewares/auth";
 import { createPaymentLink, getPaymentStatus, verifyWebhookSignature } from "../lib/oxapay";
-import { sendPaymentConfirmation, notifyAdminOrder, getBotUsername } from "../lib/telegram-bot";
+import { sendPaymentConfirmation, sendOrderDeliveryFiles, notifyAdminOrder, getBotUsername } from "../lib/telegram-bot";
 import { ObjectStorageService } from "../lib/objectStorage";
+import { getPublicApiBaseUrl } from "../lib/public-url";
+import { logger } from "../lib/logger";
+import { checkStockAvailability, generateExportContent } from "../lib/fiche-parser";
 import crypto from "crypto";
 
 const storageService = new ObjectStorageService();
@@ -13,6 +17,56 @@ const router: IRouter = Router();
 
 function generateDownloadToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+function normalizeObjectPath(inputPath: string): string {
+  const raw = String(inputPath || "").trim();
+  if (!raw) return raw;
+
+  if (raw.startsWith("/objects/")) {
+    return raw;
+  }
+
+  if (raw.startsWith("/api/storage/objects/")) {
+    return raw.replace("/api/storage", "");
+  }
+
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const url = new URL(raw);
+      if (url.pathname.startsWith("/api/storage/objects/")) {
+        return url.pathname.replace("/api/storage", "");
+      }
+      if (url.pathname.startsWith("/objects/")) {
+        return url.pathname;
+      }
+    } catch {
+    }
+  }
+
+  return raw;
+}
+
+function resolveRecordQuantity(
+  savedRecordQuantity: number | null | undefined,
+  selectedOptionLabel: string | null | undefined,
+  priceOptions: Array<{ label: string; price: string; quantity: string }> | null | undefined,
+): number {
+  const persisted = Number(savedRecordQuantity ?? 0);
+  if (persisted > 0) return persisted;
+
+  const options = priceOptions ?? [];
+  if (options.length === 0) return 0;
+
+  if (selectedOptionLabel) {
+    const wanted = String(selectedOptionLabel).trim().toLowerCase();
+    const matched = options.find(o => String(o.label ?? "").trim().toLowerCase() === wanted);
+    if (matched) {
+      return parseInt(matched.quantity ?? "0", 10) || 0;
+    }
+  }
+
+  return parseInt(options[0].quantity ?? "0", 10) || 0;
 }
 
 router.post("/payments/create", requireAuth, async (req, res): Promise<void> => {
@@ -53,11 +107,15 @@ router.post("/payments/create", requireAuth, async (req, res): Promise<void> => 
   const botName = getBotUsername();
   const returnUrl = botName ? `https://t.me/${botName}` : undefined;
 
+  const publicApiBaseUrl = getPublicApiBaseUrl();
+  const callbackUrl = publicApiBaseUrl ? `${publicApiBaseUrl}/api/payment-webhook` : undefined;
+
   const payment_link = await createPaymentLink({
     amount: parseFloat(order.amount),
     currency: "EUR",
     orderId: String(orderId),
     description: `BANK$DATA — Commande #${orderId}`,
+    ...(callbackUrl ? { callbackUrl } : {}),
     ...(returnUrl ? { returnUrl } : {}),
   });
 
@@ -99,7 +157,8 @@ router.get("/payments/:id/status", requireAuth, async (req, res): Promise<void> 
   if (payment.trackId && payment.status === "pending") {
     try {
       const statusData = await getPaymentStatus(payment.trackId);
-      if (statusData.status === "Paid" || statusData.status === "Confirming") {
+      const normalizedStatus = String(statusData.status ?? "").trim().toLowerCase();
+      if (normalizedStatus === "paid" || normalizedStatus === "confirming") {
         await db.update(paymentsTable).set({
           status: "confirmed",
           txHash: statusData.txHash,
@@ -121,47 +180,112 @@ router.get("/payments/:id/status", requireAuth, async (req, res): Promise<void> 
   });
 });
 
+/**
+ * Reserve stock atomically using PostgreSQL FOR UPDATE.
+ * Returns the new stockUsed value, or null if insufficient stock.
+ */
+async function reserveStock(
+  txDb: ReturnType<typeof drizzle>,
+  productId: number,
+  recordsConsumed: number,
+): Promise<{ stockUsed: number; stock: number } | null> {
+  // Lock the product row to prevent concurrent modifications
+  const result = await txDb.execute(
+    sql`SELECT id, stock, stock_used FROM products WHERE id = ${productId} FOR UPDATE`
+  ) as any;
+
+  const product = result?.rows?.[0] ?? result?.[0];
+
+  if (!product) return null;
+
+  const currentStock = Number(product.stock ?? 0);
+  const currentUsed = Number(product.stock_used ?? 0);
+
+  const stockCheck = checkStockAvailability(currentStock, currentUsed, recordsConsumed);
+  if (!stockCheck.available) {
+    logger.warn({ productId, ...stockCheck, requested: recordsConsumed }, stockCheck.message);
+    return null;
+  }
+
+  const newStockUsed = currentUsed + recordsConsumed;
+
+  await txDb.update(productsTable)
+    .set({
+      stockUsed: newStockUsed,
+      totalSales: sql`${productsTable.totalSales} + 1`,
+    })
+    .where(eq(productsTable.id, productId));
+
+  return { stockUsed: newStockUsed, stock: currentStock };
+}
+
+/**
+ * Extract lines from a stock file. Reads the full file once, slices the
+ * needed range, then writes the output buffer. For very large files the
+ * source is read as a single buffer (GCS already streams internally).
+ */
 async function extractStockLines(
   fileUrl: string,
   offset: number,
   count: number,
   productName: string,
-): Promise<{ generatedFileUrl: string; generatedFileName: string } | null> {
+  outputFormat: "txt" | "csv" | "json" = "txt",
+): Promise<{ fileBuffer: Buffer; generatedFileUrl: string; generatedFileName: string } | null> {
   try {
-    const buffer = await storageService.readObjectBuffer(fileUrl);
+    const objectPath = normalizeObjectPath(fileUrl);
+    logger.info({ objectPath, offset, count, productName, outputFormat }, "[stock] Reading source file");
+
+    const buffer = await storageService.readObjectBuffer(objectPath);
     const text = buffer.toString('utf-8');
     const allLines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+
+    logger.info({ objectPath, totalLines: allLines.length, offset, count }, "[stock] Source file parsed");
+
+    if (offset >= allLines.length) {
+      logger.warn({ objectPath, totalLines: allLines.length, offset }, "[stock] Offset beyond file length");
+      return null;
+    }
 
     const slice = allLines.slice(offset, offset + count);
     if (slice.length === 0) return null;
 
-    const outputText = slice.join('\n') + '\n';
-    const outputBuffer = Buffer.from(outputText, 'utf-8');
+    // Génère le contenu dans le format demandé via le parser unifié
+    const exported = generateExportContent(slice, outputFormat);
+    const outputBuffer = Buffer.from(exported.content, 'utf-8');
 
-    const generatedFileUrl = await storageService.uploadObjectBuffer(outputBuffer, 'text/plain');
+    const generatedFileUrl = await storageService.uploadObjectBuffer(outputBuffer, exported.contentType);
     const safeName = productName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    const generatedFileName = `${safeName}_${count}_records.txt`;
+    const generatedFileName = `${safeName}_${slice.length}_records.${exported.extension}`;
 
-    return { generatedFileUrl, generatedFileName };
+    logger.info({ productName, fileName: generatedFileName, lines: slice.length, bufferSize: outputBuffer.length, format: outputFormat }, "[stock] Extraction complete");
+
+    return { fileBuffer: outputBuffer, generatedFileUrl, generatedFileName };
   } catch (err) {
-    console.error('[stock] Error extracting lines:', err);
+    logger.error({ err, fileUrl }, '[stock] Error extracting lines');
     return null;
   }
 }
 
+/**
+ * Main payment processing pipeline:
+ *   Phase 1 — Atomic stock reservation (FOR UPDATE + transaction)
+ *   Phase 2 — File extraction (outside transaction, no locks held)
+ *   Phase 3 — Telegram delivery with retry
+ *   Phase 4 — Confirm sale OR rollback reservation
+ */
 async function processConfirmedPayment(orderId: number, paymentId: number): Promise<void> {
-  await db.update(ordersTable).set({ status: "completed" }).where(eq(ordersTable.id, orderId));
-
   const order = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId)).then(r => r[0]);
   if (!order) return;
 
   const items = await db.select({
     productId: orderItemsTable.productId,
     recordQuantity: orderItemsTable.recordQuantity,
+    selectedOptionLabel: orderItemsTable.selectedOptionLabel,
     downloadLimit: productsTable.downloadLimit,
     downloadExpiry: productsTable.downloadExpiry,
     productName: productsTable.name,
     productFileUrl: productsTable.fileUrl,
+    productPriceOptions: productsTable.priceOptions,
     productStock: productsTable.stock,
     productStockUsed: productsTable.stockUsed,
   })
@@ -169,16 +293,80 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
     .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
     .where(eq(orderItemsTable.orderId, orderId));
 
-  for (const item of items) {
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + (item.downloadExpiry ?? 7));
+  logger.info({ orderId, itemCount: items.length }, "Processing order items for delivery");
 
-    const recordsConsumed = item.recordQuantity ?? 0;
+  const fileDeliveryBuffers: Array<{ productName: string; buffer: Buffer; fileName: string }> = [];
+  // Track reservations for rollback if delivery fails
+  const reservations: Array<{ productId: number; recordsConsumed: number; previousStockUsed: number }> = [];
 
-    let generatedFileUrl: string | null = null;
-    let generatedFileName: string | null = null;
+  // ────────────────────────────────────────────────
+  // PHASE 1: Atomic stock reservation (transaction)
+  // ────────────────────────────────────────────────
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const txDb = drizzle(client);
 
-    if (item.productFileUrl && recordsConsumed > 0 && (item.productStock ?? 0) > 0) {
+    for (const item of items) {
+      const recordsConsumed = resolveRecordQuantity(
+        item.recordQuantity,
+        item.selectedOptionLabel,
+        (item.productPriceOptions as Array<{ label: string; price: string; quantity: string }> | null | undefined),
+      );
+
+      logger.info({
+        productName: item.productName,
+        recordsConsumed,
+        productStock: item.productStock,
+        productStockUsed: item.productStockUsed,
+        productFileUrl: item.productFileUrl ? "yes" : "no",
+      }, "Item details");
+
+      if (item.productFileUrl && recordsConsumed > 0) {
+        const reserved = await reserveStock(txDb, item.productId, recordsConsumed);
+        if (!reserved) {
+          throw new Error(`Stock insuffisant pour ${item.productName} (produit ${item.productId})`);
+        }
+        reservations.push({
+          productId: item.productId,
+          recordsConsumed,
+          previousStockUsed: item.productStockUsed ?? 0,
+        });
+        logger.info({ productName: item.productName, newStockUsed: reserved.stockUsed, stock: reserved.stock }, "Stock reserved");
+      } else {
+        // No file → still count the sale
+        await txDb.update(productsTable)
+          .set({ totalSales: sql`${productsTable.totalSales} + 1` })
+          .where(eq(productsTable.id, item.productId));
+      }
+    }
+
+    // Mark order as "reserved" (not yet completed — will confirm after delivery)
+    await txDb.update(ordersTable).set({ status: "reserved" }).where(eq(ordersTable.id, orderId));
+    await client.query("COMMIT");
+    logger.info({ orderId, reservations: reservations.length }, "Phase 1 — Stock reserved, transaction committed");
+  } catch (txErr) {
+    await client.query("ROLLBACK");
+    logger.error({ err: txErr, orderId }, "Phase 1 — ROLLBACK, stock reservation failed");
+    await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, orderId));
+    return; // Stop here — nothing was consumed
+  } finally {
+    client.release();
+  }
+
+  // ────────────────────────────────────────────────
+  // PHASE 2: Extract files (no DB locks held)
+  // ────────────────────────────────────────────────
+  try {
+    for (const item of items) {
+      const recordsConsumed = resolveRecordQuantity(
+        item.recordQuantity,
+        item.selectedOptionLabel,
+        (item.productPriceOptions as Array<{ label: string; price: string; quantity: string }> | null | undefined),
+      );
+
+      if (!item.productFileUrl || recordsConsumed <= 0) continue;
+
       const currentOffset = item.productStockUsed ?? 0;
       const extracted = await extractStockLines(
         item.productFileUrl,
@@ -186,44 +374,135 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
         recordsConsumed,
         item.productName ?? 'produit',
       );
+
+      // Create download record regardless of extraction success
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + (item.downloadExpiry ?? 7));
+      const downloadToken = generateDownloadToken();
+
+      await db.insert(downloadsTable).values({
+        userId: order.userId,
+        productId: item.productId,
+        orderId,
+        token: downloadToken,
+        maxDownloads: item.downloadLimit ?? 5,
+        expiresAt: expiry,
+        generatedFileUrl: extracted?.generatedFileUrl ?? undefined,
+        generatedFileName: extracted?.generatedFileName ?? undefined,
+      });
+
       if (extracted) {
-        generatedFileUrl = extracted.generatedFileUrl;
-        generatedFileName = extracted.generatedFileName;
+        fileDeliveryBuffers.push({
+          productName: item.productName ?? "Produit",
+          buffer: extracted.fileBuffer,
+          fileName: extracted.generatedFileName,
+        });
+      } else {
+        logger.warn({ productName: item.productName }, "File extraction returned null");
       }
     }
-
-    await db.insert(downloadsTable).values({
-      userId: order.userId,
-      productId: item.productId,
-      orderId,
-      token: generateDownloadToken(),
-      maxDownloads: item.downloadLimit ?? 5,
-      expiresAt: expiry,
-      generatedFileUrl: generatedFileUrl ?? undefined,
-      generatedFileName: generatedFileName ?? undefined,
-    });
-
-    await db.update(productsTable)
-      .set({
-        totalSales: sql`${productsTable.totalSales} + 1`,
-        stockUsed: recordsConsumed > 0
-          ? sql`LEAST(${productsTable.stock}, ${productsTable.stockUsed} + ${recordsConsumed})`
-          : productsTable.stockUsed,
-      })
-      .where(eq(productsTable.id, item.productId));
+  } catch (extractErr) {
+    logger.error({ err: extractErr, orderId }, "Phase 2 — File extraction failed, rolling back stock");
+    await cancelReservation(reservations, orderId);
+    return;
   }
 
+  // ────────────────────────────────────────────────
+  // PHASE 3: Deliver via Telegram
+  // ────────────────────────────────────────────────
   const user = await db.select().from(usersTable).where(eq(usersTable.id, order.userId)).then(r => r[0]);
+  let deliverySuccess = false;
+
   if (user) {
-    const productNames = items.map(i => i.productName ?? "Produit").filter(Boolean);
-    await sendPaymentConfirmation(user.telegramId, orderId, order.amount);
-    await notifyAdminOrder({
-      username: user.username ?? user.firstName ?? "—",
-      telegramId: user.telegramId,
-      orderId,
-      amount: order.amount,
-      productNames,
-    });
+    try {
+      await sendPaymentConfirmation(user.telegramId, orderId, order.amount);
+    } catch {}
+
+    if (fileDeliveryBuffers.length > 0) {
+      try {
+        logger.info({ orderId, fileBuffersCount: fileDeliveryBuffers.length }, "Phase 3 — Sending files via Telegram");
+        const delivery = await sendOrderDeliveryFiles(user.telegramId, orderId, fileDeliveryBuffers);
+        logger.info({ orderId, sent: delivery.sent, total: delivery.total }, `File delivery: ${delivery.sent}/${delivery.total}`);
+        deliverySuccess = delivery.sent > 0;
+      } catch (err) {
+        logger.error({ err, orderId }, "Phase 3 — Telegram delivery threw");
+      }
+    } else {
+      // No files to send (product without file) — consider success
+      deliverySuccess = true;
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // PHASE 4: Confirm sale OR rollback reservation
+  // ────────────────────────────────────────────────
+  if (deliverySuccess) {
+    await db.update(ordersTable).set({ status: "completed" }).where(eq(ordersTable.id, orderId));
+    logger.info({ orderId }, "Phase 4 — Sale confirmed, order completed");
+
+    // Notify admin
+    if (user) {
+      try {
+        await notifyAdminOrder({
+          username: user.username ?? user.firstName ?? "—",
+          telegramId: user.telegramId,
+          orderId,
+          amount: order.amount,
+          productNames: items.map(i => i.productName ?? "Produit"),
+        });
+      } catch {}
+    }
+  } else {
+    logger.warn({ orderId }, "Phase 4 — Delivery failed, rolling back reservation");
+    await cancelReservation(reservations, orderId);
+
+    // Notify admin of failed delivery
+    if (user) {
+      try {
+        await notifyAdminOrder({
+          username: user.username ?? user.firstName ?? "—",
+          telegramId: user.telegramId,
+          orderId,
+          amount: order.amount,
+          productNames: items.map(i => `❌ ${i.productName ?? "Produit"} (échec livraison)`),
+        });
+      } catch {}
+    }
+  }
+}
+
+/**
+ * Rollback: revert stockUsed to previous values and mark order as failed.
+ * This restores the reserved stock so other buyers can purchase it.
+ */
+async function cancelReservation(
+  reservations: Array<{ productId: number; recordsConsumed: number; previousStockUsed: number }>,
+  orderId: number,
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const txDb = drizzle(client);
+
+    for (const r of reservations) {
+      await txDb.update(productsTable)
+        .set({
+          stockUsed: r.previousStockUsed,
+          totalSales: sql`GREATEST(0, ${productsTable.totalSales} - 1)`,
+        })
+        .where(eq(productsTable.id, r.productId));
+
+      logger.info({ productId: r.productId, revertedTo: r.previousStockUsed }, "Stock reservation cancelled");
+    }
+
+    await txDb.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, orderId));
+    await client.query("COMMIT");
+    logger.info({ orderId, rolledBack: reservations.length }, "Reservation rollback committed");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err, orderId }, "Reservation rollback failed — manual intervention needed");
+  } finally {
+    client.release();
   }
 }
 

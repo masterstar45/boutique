@@ -35,11 +35,17 @@ router.post("/orders", requireAuth, async (req, res): Promise<void> => {
     let selectedOptionLabel: string | null = null;
 
     if (item.selectedOptionLabel && opts.length > 0) {
-      const match = opts.find(o => o.label === item.selectedOptionLabel);
+      const requested = String(item.selectedOptionLabel).trim().toLowerCase();
+      const match = opts.find(o => String(o.label ?? "").trim().toLowerCase() === requested);
       if (match) {
         optionPrice = parseFloat(match.price);
         recordQuantity = parseInt(match.quantity ?? "0", 10) || 0;
         selectedOptionLabel = match.label;
+      } else {
+        const first = opts[0];
+        optionPrice = parseFloat(first.price);
+        recordQuantity = parseInt(first.quantity ?? "0", 10) || 0;
+        selectedOptionLabel = first.label;
       }
     } else if (opts.length > 0) {
       const first = opts[0];

@@ -1,8 +1,9 @@
 import React from 'react';
+import { Link } from 'wouter';
 import { useGetAdminStats, useAdminListOrders } from '@workspace/api-client-react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { formatMoney, formatDate } from '@/lib/utils';
-import { DollarSign, ShoppingCart, Users, Package, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingCart, Users, Package, TrendingUp, ArrowRight } from 'lucide-react';
 
 export function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
@@ -14,7 +15,32 @@ export function AdminDashboard() {
     <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-display font-black text-white">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Aperçu en temps réel de votre activité.</p>
+        <p className="text-muted-foreground mt-1">Aperçu en temps réel et accès à toutes les fonctions admin depuis un seul onglet.</p>
+      </div>
+
+      <div className="glass-card rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-white mb-4">Toutes les fonctions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            { label: 'Produits', href: '/admin/produits' },
+            { label: 'Pays par Rubrique', href: '/admin/rubriques-pays' },
+            { label: 'Commandes', href: '/admin/commandes' },
+            { label: 'Utilisateurs', href: '/admin/utilisateurs' },
+            { label: 'Promo Codes', href: '/admin/promo-codes' },
+            { label: 'Admins & Crédits', href: '/admin/admins' },
+            { label: 'Affiliation', href: '/admin/affiliation' },
+            { label: 'Boutons Bot /start', href: '/admin/boutons-bot' },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white hover:bg-primary/10 hover:border-primary/30 transition-colors"
+            >
+              <span>{item.label}</span>
+              <ArrowRight className="w-4 h-4 text-primary" />
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Main Stats */}

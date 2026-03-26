@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import express from "express";
 import { Readable } from "stream";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -15,8 +17,10 @@ const objectStorageService = new ObjectStorageService();
  * Request a presigned URL for file upload.
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
+ * 
+ * Requires: JWT authentication (Bearer token)
  */
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -26,19 +30,52 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   try {
     const { name, size, contentType } = parsed.data;
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
+    const result = await objectStorageService.getObjectEntityUploadURL();
+    
     res.json(
       RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
+        uploadURL: result.uploadURL,
+        objectPath: result.objectPath,
         metadata: { name, size, contentType },
       }),
     );
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+/**
+ * PUT /storage/uploads/direct/:id
+ *
+ * Direct file upload endpoint used as fallback when GCS is not configured.
+ * The client PUTs the raw file body to this endpoint instead of a GCS presigned URL.
+ *
+ * Requires: JWT authentication (Bearer token)
+ */
+router.put("/storage/uploads/direct/:id", requireAuth, express.raw({ type: '*/*', limit: '10mb' }), async (req: Request, res: Response) => {
+  try {
+    const objectId = req.params.id;
+    // Validate objectId is a UUID to prevent path traversal
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
+      res.status(400).json({ error: "Invalid object ID" });
+      return;
+    }
+
+    const data = req.body as Buffer;
+    if (!data || data.length === 0) {
+      res.status(400).json({ error: "Empty file" });
+      return;
+    }
+
+    const contentType = (req.headers['content-type'] as string) || 'application/octet-stream';
+    await objectStorageService.saveLocalFile(objectId, data, contentType);
+
+    req.log.info({ objectId, size: data.length, contentType }, "Local file uploaded");
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    req.log.error({ err: error }, "Error saving direct upload");
+    res.status(500).json({ error: "Failed to save upload" });
   }
 });
 
@@ -87,6 +124,28 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+
+    // Local filesystem fallback when GCS is not configured
+    if (!objectStorageService.isGCSConfigured()) {
+      const parts = wildcardPath.split('/');
+      const objectId = parts[parts.length - 1];
+      // Validate objectId is a UUID to prevent path traversal
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
+        res.status(400).json({ error: "Invalid object path" });
+        return;
+      }
+      const localFile = await objectStorageService.serveLocalFile(objectId);
+      if (!localFile) {
+        res.status(404).json({ error: "Object not found" });
+        return;
+      }
+      res.setHeader('Content-Type', localFile.contentType);
+      res.setHeader('Content-Length', String(localFile.size));
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      localFile.stream.pipe(res);
+      return;
+    }
+
     const objectPath = `/objects/${wildcardPath}`;
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 

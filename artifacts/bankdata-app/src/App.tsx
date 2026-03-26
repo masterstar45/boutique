@@ -26,13 +26,35 @@ import { AdminUsers } from "@/pages/admin/AdminUsers";
 import { AdminPromo } from "@/pages/admin/AdminPromo";
 import { AdminAdmins } from "@/pages/admin/AdminAdmins";
 import { AdminAffiliation } from "@/pages/admin/AdminAffiliation";
+import { AdminRubriqueCountries } from "@/pages/admin/AdminRubriqueCountries";
+import { AdminBotButtons } from "@/pages/admin/AdminBotButtons";
 
 import NotFound from "@/pages/not-found";
 
 // Global API Interceptor for Bearer Token
 const originalFetch = window.fetch;
+const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)
+  ?.trim() ?? "";
+
+const runtimeFallbackApiBaseUrl =
+  typeof window !== "undefined" && window.location.hostname.endsWith("up.railway.app")
+    ? "https://api-server-production-823c.up.railway.app"
+    : "";
+
+const apiBaseUrl = (envApiBaseUrl || runtimeFallbackApiBaseUrl).replace(/\/+$/, "");
+
 window.fetch = async (input, init) => {
-  if (typeof input === 'string' && input.startsWith('/api')) {
+  let nextInput: RequestInfo | URL = input;
+  const absoluteApiPrefix = apiBaseUrl ? `${apiBaseUrl}/api` : "";
+
+  if (typeof input === 'string' && input.startsWith('/api') && apiBaseUrl) {
+    nextInput = `${apiBaseUrl}${input}`;
+  }
+
+  const isRelativeApi = typeof input === 'string' && input.startsWith('/api');
+  const isAbsoluteApi = typeof input === 'string' && absoluteApiPrefix !== '' && input.startsWith(absoluteApiPrefix);
+
+  if (isRelativeApi || isAbsoluteApi) {
     const token = localStorage.getItem('bankdata_token');
     if (token) {
       const existing = new Headers(init?.headers);
@@ -40,7 +62,7 @@ window.fetch = async (input, init) => {
       init = { ...(init || {}), headers: existing };
     }
   }
-  return originalFetch(input, init);
+  return originalFetch(nextInput, init);
 };
 
 const queryClient = new QueryClient({
@@ -53,16 +75,31 @@ const queryClient = new QueryClient({
 });
 
 function AdminRoute({ component: Component }: { component: any }) {
-  const { isAdmin, isLoading } = useAuth();
+  const { isAdmin, isLoading, token, refreshUser } = useAuth();
   const [, setLocation] = useLocation();
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (isLoading || isAdmin || !token || isCheckingAdmin) return;
+    let mounted = true;
+    setIsCheckingAdmin(true);
+    refreshUser()
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setIsCheckingAdmin(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isLoading, isAdmin, token, isCheckingAdmin, refreshUser]);
+
+  useEffect(() => {
+    if (!isLoading && !isCheckingAdmin && !isAdmin) {
       setLocation('/');
     }
-  }, [isAdmin, isLoading, setLocation]);
+  }, [isAdmin, isLoading, isCheckingAdmin, setLocation]);
 
-  if (isLoading || !isAdmin) return <div className="min-h-screen bg-background" />;
+  if (isLoading || isCheckingAdmin || !isAdmin) return <div className="min-h-screen bg-background" />;
   
   return <Component />;
 }
@@ -154,7 +191,7 @@ function TelegramGate() {
 
         {/* CTA Button */}
         <a
-          href="https://t.me/bankdata_bot"
+          href="https://t.me/bankdata667_bot"
           className="flex items-center gap-3 px-6 py-3 rounded-xl font-display font-black text-sm w-full justify-center transition-opacity hover:opacity-90"
           style={{
             background: 'linear-gradient(135deg, #eab308, #ca8a04)',
@@ -177,7 +214,9 @@ function MainApp() {
   const [showSplash, setShowSplash] = useState(true);
   const { isLoading, user } = useAuth();
 
-  if (showSplash || isLoading) {
+  const shouldShowSplash = showSplash || isLoading;
+
+  if (shouldShowSplash) {
     return <Splash onComplete={() => setShowSplash(false)} />;
   }
 
@@ -218,6 +257,12 @@ function MainApp() {
       </Route>
       <Route path="/admin/affiliation">
         {() => <AdminRoute component={AdminAffiliation} />}
+      </Route>
+      <Route path="/admin/rubriques-pays">
+        {() => <AdminRoute component={AdminRubriqueCountries} />}
+      </Route>
+      <Route path="/admin/boutons-bot">
+        {() => <AdminRoute component={AdminBotButtons} />}
       </Route>
 
       <Route component={NotFound} />

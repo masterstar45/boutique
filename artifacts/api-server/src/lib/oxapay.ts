@@ -82,5 +82,7 @@ export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: 
   const hmac = crypto.createHmac("sha512", OXAPAY_API_KEY)
     .update(JSON.stringify(body))
     .digest("hex");
-  return hmac === hmacSent;
+  const normalizedSent = hmacSent.replace(/^sha512=/i, "").trim().toLowerCase();
+  const normalizedCalculated = hmac.trim().toLowerCase();
+  return normalizedCalculated === normalizedSent;
 }
