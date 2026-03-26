@@ -11,6 +11,8 @@ import {
   setObjectAclPolicy,
 } from "./objectAcl";
 import { getPublicApiBaseUrl } from "./public-url";
+import { db, fileStorageTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const LOCAL_UPLOADS_DIR = path.resolve(process.env.LOCAL_UPLOADS_DIR || "./local-uploads");
 
@@ -94,33 +96,33 @@ export class ObjectStorageService {
   }
 
   /**
-   * Save a file to local disk (used when GCS is not configured).
+   * Save a file to PostgreSQL database (persistent across deploys).
    */
   async saveLocalFile(objectId: string, data: Buffer, contentType: string): Promise<void> {
-    const dir = this.getLocalUploadsDir();
-    const filePath = path.join(dir, objectId);
-    const metaPath = path.join(dir, `${objectId}.meta.json`);
-    fs.writeFileSync(filePath, data);
-    fs.writeFileSync(metaPath, JSON.stringify({ contentType, size: data.length }));
+    const base64Data = data.toString('base64');
+    await db.insert(fileStorageTable).values({
+      objectId,
+      data: base64Data,
+      contentType,
+      size: data.length,
+    }).onConflictDoUpdate({
+      target: fileStorageTable.objectId,
+      set: { data: base64Data, contentType, size: data.length },
+    });
+    console.error(`[storage] File saved to PostgreSQL: ${objectId} (${data.length} bytes)`);
   }
 
   /**
-   * Serve a file from local disk. Returns null if not found.
+   * Serve a file from PostgreSQL. Returns null if not found.
    */
-  async serveLocalFile(objectId: string): Promise<{ stream: fs.ReadStream; contentType: string; size: number } | null> {
-    const dir = this.getLocalUploadsDir();
-    const filePath = path.join(dir, objectId);
-    if (!fs.existsSync(filePath)) return null;
-    const metaPath = path.join(dir, `${objectId}.meta.json`);
-    let contentType = 'application/octet-stream';
-    const size = fs.statSync(filePath).size;
-    if (fs.existsSync(metaPath)) {
-      try {
-        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-        contentType = meta.contentType || contentType;
-      } catch {}
-    }
-    return { stream: fs.createReadStream(filePath), contentType, size };
+  async serveLocalFile(objectId: string): Promise<{ buffer: Buffer; contentType: string; size: number } | null> {
+    const row = await db.select()
+      .from(fileStorageTable)
+      .where(eq(fileStorageTable.objectId, objectId))
+      .then(r => r[0]);
+    if (!row) return null;
+    const buffer = Buffer.from(row.data, 'base64');
+    return { buffer, contentType: row.contentType, size: row.size };
   }
 
   getPublicObjectSearchPaths(): Array<string> {
@@ -300,27 +302,33 @@ export class ObjectStorageService {
   }
 
   async readObjectBuffer(objectPath: string): Promise<Buffer> {
-    // Local storage fallback when GCS is not configured
+    // PostgreSQL storage fallback when GCS is not configured
     if (!this.isGCSConfigured()) {
       const parts = objectPath.replace(/^\/objects\//, '').split('/');
       const objectId = parts[parts.length - 1];
+
+      console.error(`[storage] readObjectBuffer: looking for "${objectId}" in PostgreSQL`);
+
+      const row = await db.select()
+        .from(fileStorageTable)
+        .where(eq(fileStorageTable.objectId, objectId))
+        .then(r => r[0]);
+
+      if (row) {
+        console.error(`[storage] readObjectBuffer: found in PostgreSQL (${row.size} bytes)`);
+        return Buffer.from(row.data, 'base64');
+      }
+
+      // Fallback: try local filesystem (for backward compat with existing local files)
       const dir = this.getLocalUploadsDir();
       const filePath = path.join(dir, objectId);
-
-      // Detailed diagnostic log: what we're looking for and what exists
-      const existingFiles = fs.existsSync(dir)
-        ? fs.readdirSync(dir).filter(f => !f.endsWith('.meta.json'))
-        : [];
-      console.error(
-        `[storage] readObjectBuffer: looking for "${objectId}" in "${dir}". ` +
-        `File exists: ${fs.existsSync(filePath)}. ` +
-        `Files in dir (${existingFiles.length}): ${existingFiles.slice(0, 5).join(', ')}${existingFiles.length > 5 ? '...' : ''}`
-      );
-
-      if (!fs.existsSync(filePath)) {
-        throw new ObjectNotFoundError();
+      if (fs.existsSync(filePath)) {
+        console.error(`[storage] readObjectBuffer: found on local disk as fallback`);
+        return fs.readFileSync(filePath);
       }
-      return fs.readFileSync(filePath);
+
+      console.error(`[storage] readObjectBuffer: NOT FOUND in PostgreSQL or local disk`);
+      throw new ObjectNotFoundError();
     }
     const file = await this.getObjectEntityFile(objectPath);
     const [contents] = await file.download();

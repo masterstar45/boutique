@@ -142,7 +142,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       res.setHeader('Content-Type', localFile.contentType);
       res.setHeader('Content-Length', String(localFile.size));
       res.setHeader('Cache-Control', 'public, max-age=3600');
-      localFile.stream.pipe(res);
+      res.end(localFile.buffer);
       return;
     }
 

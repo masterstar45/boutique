@@ -7,3 +7,4 @@ export * from "./downloads";
 export * from "./promo";
 export * from "./rubrique-countries";
 export * from "./bot-buttons";
+export * from "./file-storage";
