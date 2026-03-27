@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, pool, paymentsTable, ordersTable, orderItemsTable, productsTable, downloadsTable, usersTable } from "@workspace/db";
+import { db, pool, paymentsTable, ordersTable, orderItemsTable, productsTable, downloadsTable, usersTable, categoriesTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { requireAuth } from "../middlewares/auth";
@@ -9,6 +9,7 @@ import { ObjectStorageService } from "../lib/objectStorage";
 import { getPublicApiBaseUrl } from "../lib/public-url";
 import { logger } from "../lib/logger";
 import { checkStockAvailability, generateExportContent } from "../lib/fiche-parser";
+import { convertToFicheFormat } from "../lib/fiche-converter";
 import crypto from "crypto";
 
 const storageService = new ObjectStorageService();
@@ -220,45 +221,57 @@ async function reserveStock(
 }
 
 /**
- * Extract lines from a stock file. Reads the full file once, slices the
- * needed range, then writes the output buffer. For very large files the
- * source is read as a single buffer (GCS already streams internally).
+ * Extract lines from a stock file.
+ * Always takes from the BEGINNING of the file (offset 0) because
+ * the file is rebuilt without consumed lines after each purchase.
+ * For fiche-client products, converts extracted lines to FICHE format.
  */
 async function extractStockLines(
   fileUrl: string,
-  offset: number,
   count: number,
   productName: string,
+  isFicheProduct: boolean = false,
   outputFormat: "txt" | "csv" | "json" = "txt",
 ): Promise<{ fileBuffer: Buffer; generatedFileUrl: string; generatedFileName: string; updatedFileUrl: string } | null> {
   try {
     const objectPath = normalizeObjectPath(fileUrl);
-    logger.info({ objectPath, offset, count, productName, outputFormat }, "[stock] Reading source file");
+    logger.info({ objectPath, count, productName, isFicheProduct, outputFormat }, "[stock] Reading source file");
 
     const buffer = await storageService.readObjectBuffer(objectPath);
     const text = buffer.toString('utf-8');
     const allLines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
 
-    logger.info({ objectPath, totalLines: allLines.length, offset, count }, "[stock] Source file parsed");
+    logger.info({ objectPath, totalLines: allLines.length, count }, "[stock] Source file parsed");
 
-    if (offset >= allLines.length) {
-      logger.warn({ objectPath, totalLines: allLines.length, offset }, "[stock] Offset beyond file length");
+    if (allLines.length === 0) {
+      logger.warn({ objectPath }, "[stock] File is empty");
       return null;
     }
 
-    const slice = allLines.slice(offset, offset + count);
-    if (slice.length === 0) return null;
+    const actualCount = Math.min(count, allLines.length);
+    const slice = allLines.slice(0, actualCount);
 
-    // Génère le contenu dans le format demandé via le parser unifié
-    const exported = generateExportContent(slice, outputFormat);
-    const outputBuffer = Buffer.from(exported.content, 'utf-8');
+    let outputContent: string;
+    let extension: string;
+    let contentType: string;
 
-    const generatedFileUrl = await storageService.uploadObjectBuffer(outputBuffer, exported.contentType);
+    if (isFicheProduct) {
+      outputContent = convertToFicheFormat(slice.join('\n'));
+      extension = "txt";
+      contentType = "text/plain";
+    } else {
+      const exported = generateExportContent(slice, outputFormat);
+      outputContent = exported.content;
+      extension = exported.extension;
+      contentType = exported.contentType;
+    }
+
+    const outputBuffer = Buffer.from(outputContent, 'utf-8');
+    const generatedFileUrl = await storageService.uploadObjectBuffer(outputBuffer, contentType);
     const safeName = productName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    const generatedFileName = `${safeName}_${slice.length}_records.${exported.extension}`;
+    const generatedFileName = `${safeName}_${actualCount}_records.${extension}`;
 
-    // Create updated stock file without the consumed lines
-    const remainingLines = [...allLines.slice(0, offset), ...allLines.slice(offset + count)];
+    const remainingLines = allLines.slice(actualCount);
     const remainingContent = remainingLines.join('\n');
     const remainingBuffer = Buffer.from(remainingContent, 'utf-8');
     const updatedFileUrl = await storageService.uploadObjectBuffer(remainingBuffer, 'text/plain');
@@ -266,10 +279,9 @@ async function extractStockLines(
     logger.info({
       productName,
       fileName: generatedFileName,
-      lines: slice.length,
-      bufferSize: outputBuffer.length,
-      format: outputFormat,
+      linesExtracted: actualCount,
       remainingStock: remainingLines.length,
+      isFicheProduct,
       updatedFileUrl,
     }, "[stock] Extraction complete — stock file updated");
 
@@ -302,6 +314,7 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
     productPriceOptions: productsTable.priceOptions,
     productStock: productsTable.stock,
     productStockUsed: productsTable.stockUsed,
+    productCategoryId: productsTable.categoryId,
   })
     .from(orderItemsTable)
     .leftJoin(productsTable, eq(orderItemsTable.productId, productsTable.id))
@@ -385,27 +398,33 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
       if (!item.productFileUrl || recordsConsumed <= 0) continue;
 
       expectedFileCount++;
-      const currentOffset = item.productStockUsed ?? 0;
 
-      // Log fileUrl and storage state for production diagnosis
-      const isGCS = storageService.isGCSConfigured();
-      const storageFilesOnDisk = isGCS ? [] : storageService.listLocalFiles();
+      let isFicheProduct = false;
+      if (item.productCategoryId) {
+        const cat = await db.select().from(categoriesTable)
+          .where(eq(categoriesTable.id, item.productCategoryId))
+          .then(r => r[0]);
+        if (cat) {
+          isFicheProduct = !!(
+            cat.slug?.toLowerCase().includes("fiche") ||
+            cat.name.toLowerCase().includes("fiche")
+          );
+        }
+      }
+
       logger.info({
         orderId,
         productName: item.productName,
         productFileUrl: item.productFileUrl,
-        currentOffset,
         recordsConsumed,
-        storageMode: isGCS ? "GCS" : "local-filesystem",
-        localFilesCount: isGCS ? "N/A (GCS)" : storageFilesOnDisk.length,
-        localFiles: isGCS ? "N/A (GCS)" : storageFilesOnDisk.slice(0, 5).map(f => f.id),
+        isFicheProduct,
       }, "Phase 2 — About to extract stock file");
 
       const extracted = await extractStockLines(
         item.productFileUrl,
-        currentOffset,
         recordsConsumed,
         item.productName ?? 'produit',
+        isFicheProduct,
       );
 
       // Create download record regardless of extraction success

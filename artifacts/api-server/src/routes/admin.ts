@@ -228,13 +228,8 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
 
   const price = computeBasePrice(priceOptions);
 
-  // Convert file to FICHE format if needed
   let processedFileUrl = fileUrl ?? null;
-  if (typeof fileUrl === "string" && fileUrl.length > 0) {
-    processedFileUrl = await maybeConvertFicheFile(fileUrl, categoryId);
-  }
 
-  // Auto-calculate stock from file line count if a file is uploaded
   let computedStock = stock ?? 0;
   if (typeof processedFileUrl === "string" && processedFileUrl.length > 0) {
     const lineCount = await countFileLines(processedFileUrl);
@@ -279,11 +274,7 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
 
   const price = computeBasePrice(priceOptions);
 
-  // Convert file to FICHE format if needed
   let processedFileUrl = fileUrl ?? null;
-  if (typeof fileUrl === "string" && fileUrl.length > 0) {
-    processedFileUrl = await maybeConvertFicheFile(fileUrl, categoryId);
-  }
 
   const currentStockUsed = existing.stockUsed ?? 0;
   let parsedStock = Number.isFinite(Number(stock)) ? Number(stock) : 0;
