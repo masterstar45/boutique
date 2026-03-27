@@ -279,4 +279,5 @@ export type ListProductsParams = {
   categoryId?: number;
   search?: string;
   featured?: boolean;
+  tags?: string;
 };
