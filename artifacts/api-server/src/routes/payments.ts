@@ -249,6 +249,16 @@ async function extractStockLines(
     }
 
     const actualCount = Math.min(count, allLines.length);
+
+    if (actualCount === allLines.length && allLines.length > 1) {
+      logger.warn({
+        objectPath,
+        requestedCount: count,
+        fileLines: allLines.length,
+        productName,
+      }, "[stock] WARNING: Extracting ALL remaining lines — price option quantity may be misconfigured");
+    }
+
     const slice = allLines.slice(0, actualCount);
 
     let outputContent: string;
