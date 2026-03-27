@@ -46,8 +46,12 @@ export function BoutiqueType({ params }: { params: { type: string } }) {
   const typeKey = params.type as keyof typeof PRODUCT_TYPES;
   const typeInfo = PRODUCT_TYPES[typeKey];
 
-  const { data: prodData, isLoading } = useListProducts({});
-  const allProducts = prodData?.products || [];
+  const tagsFilter = selectedCountry ? `${typeKey},${selectedCountry.value}` : undefined;
+  const { data: prodData, isLoading } = useListProducts(
+    tagsFilter ? { tags: tagsFilter } : {},
+    { query: { enabled: !!selectedCountry } },
+  );
+  const filteredProducts = prodData?.products || [];
 
   React.useEffect(() => {
     let active = true;
@@ -70,15 +74,6 @@ export function BoutiqueType({ params }: { params: { type: string } }) {
       active = false;
     };
   }, [typeKey, typeInfo]);
-
-  const filteredProducts = useMemo(() => {
-    if (!selectedCountry) return [];
-    return allProducts.filter(p =>
-      Array.isArray(p.tags) &&
-      p.tags.some((t: string) => t.toLowerCase() === typeKey) &&
-      p.tags.some((t: string) => t.toLowerCase() === selectedCountry.value)
-    );
-  }, [allProducts, typeKey, selectedCountry]);
 
   const filteredCountries = COUNTRIES.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());

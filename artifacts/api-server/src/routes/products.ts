@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, productsTable, categoriesTable } from "@workspace/db";
-import { eq, and, ilike, isTrue } from "drizzle-orm";
+import { eq, and, ilike, sql } from "drizzle-orm";
 import { getRubriqueCountries, isValidRubrique } from "../lib/rubriqueCountries";
 
 const router: IRouter = Router();
@@ -14,13 +14,12 @@ router.get("/rubriques/:rubrique/countries", async (req, res): Promise<void> => 
   }
 
   const countries = await getRubriqueCountries(rubriqueRaw);
+  res.setHeader("Cache-Control", "public, max-age=300");
   res.json({ rubrique: rubriqueRaw, countries });
 });
 
 router.get("/products", async (req, res): Promise<void> => {
-  const { categoryId, search, featured } = req.query;
-
-  let query = db.select().from(productsTable).where(eq(productsTable.isActive, true));
+  const { categoryId, search, featured, tags } = req.query;
 
   const conditions = [eq(productsTable.isActive, true)];
 
@@ -33,6 +32,7 @@ router.get("/products", async (req, res): Promise<void> => {
     .orderBy(productsTable.createdAt);
 
   let filtered = products;
+
   if (search) {
     const s = String(search).toLowerCase();
     filtered = filtered.filter(p =>
@@ -43,6 +43,17 @@ router.get("/products", async (req, res): Promise<void> => {
     filtered = filtered.filter(p => p.isFeatured);
   }
 
+  if (tags) {
+    const tagList = String(tags).toLowerCase().split(",").map(t => t.trim()).filter(Boolean);
+    if (tagList.length > 0) {
+      filtered = filtered.filter(p => {
+        const productTags = (p.tags as string[] ?? []).map(t => t.toLowerCase());
+        return tagList.every(t => productTags.includes(t));
+      });
+    }
+  }
+
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json({
     products: filtered.map(p => ({
       id: p.id,
@@ -79,6 +90,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  res.setHeader("Cache-Control", "public, max-age=30");
   res.json({
     id: product.id,
     name: product.name,
@@ -106,6 +118,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
 
 router.get("/categories", async (_req, res): Promise<void> => {
   const categories = await db.select().from(categoriesTable);
+  res.setHeader("Cache-Control", "public, max-age=300");
   res.json({ categories });
 });
 
