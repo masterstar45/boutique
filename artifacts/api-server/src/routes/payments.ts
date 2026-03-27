@@ -456,7 +456,7 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
         // Track the new stock file URL (stock has been consumed)
         stockFileUpdates.set(item.productId, extracted.updatedFileUrl);
       } else {
-        logger.error({ productName: item.productName, orderId, offset: currentOffset, count: recordsConsumed }, "File extraction returned null — will rollback reservation");
+        logger.error({ productName: item.productName, orderId, count: recordsConsumed }, "File extraction returned null — will rollback reservation");
       }
     }
   } catch (extractErr) {

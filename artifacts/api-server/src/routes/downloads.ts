@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, downloadsTable, productsTable } from "@workspace/db";
+import { db, downloadsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Readable } from "stream";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
@@ -29,20 +29,11 @@ router.get("/downloads/:token", async (req, res): Promise<void> => {
     return;
   }
 
-  const fileObjectPath = download.generatedFileUrl ?? null;
+  const servePath = download.generatedFileUrl ?? null;
   const fileName = download.generatedFileName ?? null;
 
-  let servePath: string | null = fileObjectPath;
-
   if (!servePath) {
-    const product = await db.select().from(productsTable)
-      .where(eq(productsTable.id, download.productId))
-      .then(r => r[0]);
-    servePath = product?.fileUrl ?? null;
-  }
-
-  if (!servePath) {
-    res.status(404).json({ error: "Fichier introuvable" });
+    res.status(404).json({ error: "Fichier extrait introuvable — contactez le support" });
     return;
   }
 
