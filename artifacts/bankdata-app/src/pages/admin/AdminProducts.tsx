@@ -606,12 +606,12 @@ export function AdminProducts() {
                         />
                         <input
                           type="number"
-                          min="0"
-                          placeholder="Qté"
-                          title="Nombre de contacts/mails inclus dans cette option"
+                          min="1"
+                          placeholder="Lignes livrées"
+                          title="Nombre de LIGNES que le client reçoit (pas le stock total !)"
                           value={opt.quantity}
                           onChange={e => updatePriceOption(idx, 'quantity', e.target.value)}
-                          className="input-field w-24 text-sm"
+                          className="input-field w-28 text-sm"
                         />
                         <input
                           type="number"
@@ -632,7 +632,7 @@ export function AdminProducts() {
                         </button>
                       </div>
                     ))}
-                    <p className="text-[11px] text-muted-foreground/60 pl-6">Label · Qté incluse · Prix — ex: "10 000 emails", 10000, 29.99</p>
+                    <p className="text-[11px] text-muted-foreground/60 pl-6">Label · <span className="text-yellow-400/80">Nb lignes livrées au client</span> · Prix — ex: "1000 fiches", <span className="text-yellow-400/80">1000</span>, 29.99</p>
                   </div>
                   {form.priceOptions.length > 0 && form.priceOptions[0].price && (
                     <p className="text-xs text-muted-foreground mt-2">
