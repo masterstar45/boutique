@@ -213,6 +213,57 @@ function computeBasePrice(priceOptions: Array<{ label: string; price: string }> 
   return String(Math.min(...prices));
 }
 
+router.get("/admin/stock-debug/:productId", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const productId = parseInt(req.params.productId as string, 10);
+    const product = await db.select().from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .then(r => r[0]);
+
+    if (!product) {
+      res.status(404).json({ error: "Produit introuvable" });
+      return;
+    }
+
+    let fileLineCount = 0;
+    let firstLines: string[] = [];
+    if (product.fileUrl) {
+      try {
+        const objectPath = normalizeObjectPath(product.fileUrl);
+        const buffer = await storageService.readObjectBuffer(objectPath);
+        const text = buffer.toString('utf-8');
+        const allLines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+        fileLineCount = allLines.length;
+        firstLines = allLines.slice(0, 5);
+      } catch (e) {
+        firstLines = [`Erreur lecture fichier: ${e}`];
+      }
+    }
+
+    const priceOpts = (product.priceOptions as Array<{ label: string; price: string; quantity: string }>) ?? [];
+
+    res.json({
+      productId: product.id,
+      name: product.name,
+      dbStock: product.stock,
+      dbStockUsed: product.stockUsed,
+      dbStockRemaining: (product.stock ?? 0) - (product.stockUsed ?? 0),
+      fileUrl: product.fileUrl ? "set" : "null",
+      actualFileLines: fileLineCount,
+      mismatch: fileLineCount !== ((product.stock ?? 0) - (product.stockUsed ?? 0)),
+      priceOptions: priceOpts.map(o => ({
+        label: o.label,
+        price: o.price,
+        quantity: o.quantity,
+        quantityParsed: parseInt(o.quantity ?? "0", 10) || 0,
+      })),
+      firstFiveLines: firstLines,
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 router.get("/admin/products", requireAdmin, async (_req, res): Promise<void> => {
   const products = await db.select().from(productsTable).orderBy(desc(productsTable.createdAt));
   res.json({ products: products.map(serializeProduct) });
