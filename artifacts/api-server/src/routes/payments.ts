@@ -407,9 +407,13 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
         if (cat) {
           isFicheProduct = !!(
             cat.slug?.toLowerCase().includes("fiche") ||
-            cat.name.toLowerCase().includes("fiche")
+            cat.name?.toLowerCase().includes("fiche")
           );
         }
+      }
+
+      if (!isFicheProduct && item.productName) {
+        isFicheProduct = item.productName.toLowerCase().includes("fiche");
       }
 
       logger.info({

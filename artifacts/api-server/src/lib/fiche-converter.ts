@@ -50,6 +50,7 @@ export function convertToFicheFormat(fileContent: string): string {
       fiches.push({
         id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         nomComplet: line.trim(),
+        dateNaissance: "",
         email: "",
         telephone: "",
         adresse: "",
