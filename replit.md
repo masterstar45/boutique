@@ -81,7 +81,7 @@ Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client insta
 - `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
 - Exports: `.` (pool, db, schema), `./schema` (schema only)
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+Schema updates: Use `pnpm --filter @workspace/db run push` (interactive, safe). `push-force` is **disabled** to prevent data loss. For schema changes with auto-backup: `pnpm --filter @workspace/db run safe-push`. Migration files are generated via `pnpm --filter @workspace/db run generate` into `drizzle/` folder.
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
@@ -103,3 +103,7 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+Available scripts:
+- `db-backup` — Exports all 13 tables to a timestamped JSON file in `scripts/backups/`
+- `db-restore` — Restores from the latest backup (or a specified file). Uses transactions with rollback on failure. Resets serial sequences.

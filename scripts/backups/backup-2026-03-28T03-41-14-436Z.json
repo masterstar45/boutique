@@ -1,0 +1,30 @@
+{
+  "categories": [],
+  "users": [
+    {
+      "id": 1,
+      "telegram_id": "5818221358",
+      "username": "Bogotaccworld",
+      "first_name": "™",
+      "last_name": "",
+      "photo_url": "https://t.me/i/userpic/320/GC3qejfj9BCKsx37Zq1RQCUHUnPoKeepyLdHbk01CPig97siTWkdTI1Op_q-ypAB.svg",
+      "balance": "0.00",
+      "is_admin": true,
+      "affiliate_code": "REF13583YI",
+      "referred_by": null,
+      "created_at": "2026-03-27T00:56:53.980Z",
+      "updated_at": "2026-03-28T03:37:31.237Z"
+    }
+  ],
+  "products": [],
+  "orders": [],
+  "order_items": [],
+  "payments": [],
+  "deposits": [],
+  "downloads": [],
+  "promo_codes": [],
+  "affiliates": [],
+  "rubrique_countries": [],
+  "bot_buttons": [],
+  "file_storage": []
+}
