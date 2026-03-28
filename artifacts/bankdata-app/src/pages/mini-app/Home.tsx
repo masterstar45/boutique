@@ -57,7 +57,7 @@ const CATEGORIES = [
     key: 'maillist',
     label: 'MAILLIST',
     icon: '📧',
-    subtitle: '',
+    subtitle: 'Bases emails check',
     gradient: 'from-emerald-500/25 via-emerald-600/15 to-emerald-900/5',
     border: 'border-emerald-500/25',
     accent: 'text-emerald-400',
