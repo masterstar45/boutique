@@ -54,13 +54,22 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
+- Entry: `src/index.ts` — reads `PORT`, starts Express. Logs database status (product/order/user counts) on startup for deploy diagnostics.
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
 - Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
 - `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
 - Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `artifacts/bankdata-app` (`@workspace/bankdata-app`)
+
+React + Vite frontend with Telegram Mini App integration.
+
+- Admin panel: 9 pages in `src/pages/admin/` (Dashboard, Products, Orders, Users, Promo, Admins, Affiliation, BotButtons, RubriqueCountries)
+- Admin layout: `src/components/layout/AdminLayout.tsx` — sidebar with collapsible navigation organized into sections (Principal, Clients, Configuration)
+- Design system: dark theme, `bg-white/[0.02]` cards with `border-white/[0.05]`, consistent table headers (`text-[10px] text-white/25`), primary color gold/yellow
+- Auth: Telegram WebApp authentication via JWT tokens
 
 ### `lib/db` (`@workspace/db`)
 

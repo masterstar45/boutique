@@ -12,9 +12,9 @@ import type { ProductListResponse } from '@workspace/api-client-react';
 const COUNTRIES = RAW_COUNTRIES.map(c => ({ value: c.value, label: `${c.flag} ${c.name}` }));
 
 const PRODUCT_TYPES = [
-  { value: 'numlist', label: '📱 NUMLIST' },
-  { value: 'maillist', label: '📧 MAILLIST' },
-  { value: 'fiche-client', label: '👤 FICHE CLIENT' },
+  { value: 'numlist', label: 'NUMLIST' },
+  { value: 'maillist', label: 'MAILLIST' },
+  { value: 'fiche-client', label: 'FICHE CLIENT' },
 ];
 
 type PriceOption = { label: string; price: string; quantity: string };
@@ -71,11 +71,8 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
   const [uploadedFileType, setUploadedFileType] = useState(initialFileType || '');
   const { toast } = useToast();
 
-  // Synchronize with form data when value changes (e.g., editing existing product)
   React.useEffect(() => {
     if (value && value.startsWith('/api/storage')) {
-      // Value exists, try to extract filename from storage path
-      // If no uploadedFileName set yet, use a default based on the path
       if (!uploadedFileName && initialFileName) {
         setUploadedFileName(initialFileName);
       }
@@ -99,7 +96,7 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
         fileSize: uploadedFileSize,
       };
       onChange(fileUrl, metadata);
-      toast({ title: '✅ Fichier uploadé', description: `Stocké à ${response.objectPath}` });
+      toast({ title: 'Fichier uploade', description: `Stocke a ${response.objectPath}` });
     },
     onError: (err) => {
       toast({ variant: 'destructive', title: 'Erreur upload', description: err.message });
@@ -121,15 +118,14 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-bold text-muted-foreground block">{label}</label>
+      <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block">{label}</label>
 
-      {/* Upload button */}
       <div
         onClick={() => !isUploading && inputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all ${
+        className={`relative border border-dashed rounded-xl p-4 cursor-pointer transition-all ${
           isUploading
-            ? 'border-primary/50 bg-primary/5 cursor-wait'
-            : 'border-white/15 hover:border-primary/50 hover:bg-primary/5'
+            ? 'border-primary/40 bg-primary/5 cursor-wait'
+            : 'border-white/[0.1] hover:border-primary/30 hover:bg-white/[0.02]'
         }`}
       >
         <input
@@ -142,53 +138,52 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
         />
 
         {isUploading ? (
-          <div className="flex flex-col items-center gap-2 py-2">
-            <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            <p className="text-sm text-primary font-bold">Upload en cours... {progress}%</p>
-            <div className="w-full bg-white/10 rounded-full h-1.5">
-              <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
+          <div className="flex flex-col items-center gap-2 py-1">
+            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            <p className="text-xs text-primary font-bold">Upload... {progress}%</p>
+            <div className="w-full bg-white/10 rounded-full h-1">
+              <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </div>
         ) : hasUploadedFile ? (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-              <FileCheck className="w-5 h-5 text-emerald-400" />
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+              <FileCheck className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-emerald-400 truncate">{uploadedFileName || 'Fichier uploadé'}</p>
-              {uploadedFileSize > 0 && <p className="text-xs text-muted-foreground">{formatBytes(uploadedFileSize)}</p>}
+              <p className="text-xs font-semibold text-emerald-400 truncate">{uploadedFileName || 'Fichier uploade'}</p>
+              {uploadedFileSize > 0 && <p className="text-[10px] text-white/20">{formatBytes(uploadedFileSize)}</p>}
             </div>
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onChange(''); setUploadedFileName(''); setUploadedFileSize(0); setUploadedFileType(''); }}
-              className="p-1 hover:bg-white/10 rounded-lg text-white/50 hover:text-rose-400"
+              className="p-1 hover:bg-white/10 rounded text-white/30 hover:text-rose-400"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center flex-shrink-0">
               {icon}
             </div>
             <div>
-              <p className="text-sm font-bold text-white">Cliquer pour uploader</p>
-              {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+              <p className="text-xs font-medium text-white/50">Cliquer pour uploader</p>
+              {hint && <p className="text-[10px] text-white/20">{hint}</p>}
             </div>
-            <Upload className="w-4 h-4 text-muted-foreground ml-auto" />
+            <Upload className="w-3.5 h-3.5 text-white/15 ml-auto" />
           </div>
         )}
       </div>
 
-      {/* Manual URL input */}
       <div className="flex items-center gap-2">
-        <Link className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+        <Link className="w-3 h-3 text-white/15 flex-shrink-0" />
         <input
           type="url"
           value={hasExternalUrl ? value : ''}
           onChange={e => { onChange(e.target.value); setUploadedFileName(''); setUploadedFileSize(0); }}
           placeholder="Ou coller une URL externe..."
-          className="flex-1 bg-transparent border-b border-white/10 py-1 text-xs text-muted-foreground focus:outline-none focus:border-primary/50 placeholder:text-white/20"
+          className="flex-1 bg-transparent border-b border-white/[0.06] py-1 text-[11px] text-white/30 focus:outline-none focus:border-white/[0.12] placeholder:text-white/10"
         />
       </div>
     </div>
@@ -249,7 +244,7 @@ export function AdminProducts() {
     });
     setEditingId(p.id);
     setIsModalOpen(true);
-  };;
+  };
 
   const handleDelete = async (id: number) => {
     if (confirm('Supprimer ce produit ?')) {
@@ -266,7 +261,7 @@ export function AdminProducts() {
         });
         queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
         queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-        toast({ title: 'Supprimé', description: 'Le produit a été retiré des produits actifs.' });
+        toast({ title: 'Supprime', description: 'Le produit a ete retire des produits actifs.' });
       } catch (err: any) {
         toast({ variant: 'destructive', title: 'Erreur', description: err.message || 'Impossible de supprimer le produit.' });
       }
@@ -290,7 +285,7 @@ export function AdminProducts() {
     const tags = buildTags(form.productType, form.country);
     const validOptions = form.priceOptions.filter(o => o.label.trim() && o.price.trim());
     if (validOptions.length === 0) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Ajoutez au moins une option de prix complète.' });
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Ajoutez au moins une option de prix complete.' });
       return;
     }
     const payload = {
@@ -307,10 +302,10 @@ export function AdminProducts() {
     try {
       if (editingId) {
         await updateMut.mutateAsync({ id: editingId, data: payload });
-        toast({ title: 'Modifié', description: 'Produit mis à jour.' });
+        toast({ title: 'Modifie', description: 'Produit mis a jour.' });
       } else {
         await createMut.mutateAsync({ data: payload });
-        toast({ title: 'Créé', description: 'Produit ajouté avec succès.' });
+        toast({ title: 'Cree', description: 'Produit ajoute avec succes.' });
       }
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
@@ -330,195 +325,176 @@ export function AdminProducts() {
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Produits</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gérez votre catalogue de données.</p>
+          <h1 className="text-2xl font-black text-white tracking-tight">Produits</h1>
+          <p className="text-white/30 text-sm mt-0.5">Gerez votre catalogue de donnees</p>
         </div>
-        <button onClick={handleOpenNew} className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" /> Ajouter
+        <button onClick={handleOpenNew} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-black font-bold text-sm hover:bg-primary/90 transition-colors">
+          <Plus className="w-4 h-4" /> Ajouter
         </button>
       </div>
 
-      {/* ── FILTER BAR ── */}
-      <div className="glass-card rounded-2xl p-4 mb-4 space-y-3">
-        <div className="flex flex-wrap gap-3 items-center">
-          {/* Search */}
+      <div className="rounded-xl bg-white/[0.02] border border-white/[0.05] p-4 mb-4 space-y-3">
+        <div className="flex flex-wrap gap-2.5 items-center">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Rechercher un produit..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 transition-colors"
+              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-white/[0.12] transition-colors"
             />
           </div>
-
-          {/* Type filter */}
           <select
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+            className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-white/60 focus:outline-none focus:border-white/[0.12] transition-colors cursor-pointer"
           >
-            <option value="">🗂️ Tous les types</option>
-            {PRODUCT_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
+            <option value="">Tous les types</option>
+            {PRODUCT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-
-          {/* Country filter */}
           <select
             value={filterCountry}
             onChange={e => setFilterCountry(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+            className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-white/60 focus:outline-none focus:border-white/[0.12] transition-colors cursor-pointer"
           >
-            <option value="">🌍 Tous les pays</option>
-            {COUNTRIES.map(c => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
+            <option value="">Tous les pays</option>
+            {COUNTRIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
-
-          {/* Status filter */}
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer"
+            className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-white/60 focus:outline-none focus:border-white/[0.12] transition-colors cursor-pointer"
           >
-            <option value="active">✅ Actifs</option>
-            <option value="">📋 Tous les statuts</option>
-            <option value="inactive">⛔ Inactifs</option>
+            <option value="active">Actifs</option>
+            <option value="">Tous</option>
+            <option value="inactive">Inactifs</option>
           </select>
-
-          {/* Reset button */}
           {activeFiltersCount > 0 && (
             <button
               onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus('active'); }}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-sm font-bold hover:bg-rose-500/25 transition-colors"
+              className="px-3 py-2.5 rounded-xl text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15 transition-colors"
             >
-              <X className="w-3.5 h-3.5" /> Réinitialiser
+              Reset
             </button>
           )}
         </div>
-
-        {/* Results count */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {filteredProducts.length} produit{filteredProducts.length !== 1 ? 's' : ''}
-            {activeFiltersCount > 0 && <span className="text-primary ml-1">({activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''} actif{activeFiltersCount > 1 ? 's' : ''})</span>}
-          </span>
-          {filterType && (
-            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full font-bold">
-              {PRODUCT_TYPES.find(t => t.value === filterType)?.label}
-            </span>
-          )}
+        <div className="text-[11px] text-white/20">
+          {filteredProducts.length} produit{filteredProducts.length !== 1 ? 's' : ''}
+          {activeFiltersCount > 0 && <span className="text-primary/60 ml-1">({activeFiltersCount} filtre{activeFiltersCount > 1 ? 's' : ''})</span>}
         </div>
       </div>
 
-      <div className="glass-card rounded-2xl overflow-hidden">
+      <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-white/[0.06] text-[11px] text-white/40 uppercase tracking-wider">
-                <th className="px-4 sm:px-5 py-3 font-semibold">Produit</th>
-                <th className="px-4 py-3 font-semibold">Type / Pays</th>
-                <th className="px-4 py-3 font-semibold">Options de prix</th>
-                <th className="px-4 py-3 font-semibold">Stock</th>
-                <th className="px-4 py-3 font-semibold">Ventes</th>
-                <th className="px-4 py-3 font-semibold">Statut</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+              <tr className="border-b border-white/[0.04]">
+                <th className="px-5 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Produit</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Type / Pays</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Options de prix</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Stock</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Ventes</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Statut</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Chargement...</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-white/15 mx-auto" /></td></tr>
               ) : filteredProducts.map(p => {
                 const { type, country } = getTypeBadge(p.tags ?? []);
                 return (
-                  <tr key={p.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors">
-                    <td className="p-4">
+                  <tr key={p.id} className="border-b border-white/[0.03] hover:bg-white/[0.015] transition-colors">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-black/40 flex-shrink-0 overflow-hidden flex items-center justify-center text-xl">
-                          {p.imageUrl ? <img src={resolveImageUrl(p.imageUrl)} className="w-full h-full object-cover" /> : (type?.label.split(' ')[0] ?? '📦')}
+                        <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {p.imageUrl ? <img src={resolveImageUrl(p.imageUrl)} className="w-full h-full object-cover" /> : <span className="text-white/15 text-lg">?</span>}
                         </div>
-                        <div>
-                          <p className="font-bold text-white text-sm line-clamp-1">{p.name}</p>
-                          {p.isFeatured && <span className="text-[9px] px-1.5 py-0.5 bg-primary/20 text-primary rounded">PREMIUM</span>}
+                        <div className="min-w-0">
+                          <p className="font-medium text-white text-sm truncate max-w-[200px]">{p.name}</p>
+                          {p.isFeatured && <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary/70 rounded font-bold">PREMIUM</span>}
                         </div>
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-1">
-                        {type && <span className="text-[10px] px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full w-fit font-bold">{type.label}</span>}
-                        {country && <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/70 rounded-full w-fit">{country.label}</span>}
-                        {!type && !country && <span className="text-[10px] text-red-400/70">⚠ Non classé</span>}
+                        {type && <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400/70 rounded w-fit font-bold">{type.label}</span>}
+                        {country && <span className="text-[10px] px-1.5 py-0.5 bg-white/[0.04] text-white/40 rounded w-fit">{country.label}</span>}
+                        {!type && !country && <span className="text-[10px] text-rose-400/50">Non classe</span>}
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="px-4 py-3.5">
                       {p.priceOptions?.length > 0 ? (
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                           {p.priceOptions.map((opt: PriceOption, i: number) => (
-                            <div key={i} className="flex items-center gap-2 text-sm">
-                              <span className="font-bold text-gold">{formatMoney(opt.price)}</span>
-                              {opt.label && <span className="text-white/50 text-xs">{opt.label}</span>}
+                            <div key={i} className="flex items-center gap-1.5 text-xs">
+                              <span className="font-bold text-primary">{formatMoney(opt.price)}</span>
+                              {opt.label && <span className="text-white/25">{opt.label}</span>}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span className="font-bold text-white">{formatMoney(p.price)}</span>
+                        <span className="font-bold text-white text-sm">{formatMoney(p.price)}</span>
                       )}
                     </td>
-                    <td className="p-4">
+                    <td className="px-4 py-3.5">
                       {p.stock > 0 ? (() => {
                         const remaining = Math.max(0, p.stock - (p.stockUsed ?? 0));
                         const pct = Math.max(0, Math.min(100, (remaining / p.stock) * 100));
                         const isLow = pct < 20;
                         const color = isLow ? 'bg-red-500' : pct < 50 ? 'bg-yellow-500' : 'bg-emerald-500';
                         return (
-                          <div className="min-w-[90px]">
-                            <div className="flex justify-between text-[11px] mb-1">
-                              <span className={`font-bold ${isLow ? 'text-red-400' : 'text-white'}`}>{remaining.toLocaleString('fr-FR')}</span>
-                              <span className="text-white/30">/{p.stock.toLocaleString('fr-FR')}</span>
+                          <div className="min-w-[80px]">
+                            <div className="flex justify-between text-[10px] mb-1">
+                              <span className={`font-bold ${isLow ? 'text-red-400' : 'text-white/60'}`}>{remaining.toLocaleString('fr-FR')}</span>
+                              <span className="text-white/15">/{p.stock.toLocaleString('fr-FR')}</span>
                             </div>
-                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
-                      })() : <span className="text-white/20 text-xs">—</span>}
+                      })() : <span className="text-white/15 text-xs">-</span>}
                     </td>
-                    <td className="p-4 text-muted-foreground">{p.totalSales}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 text-xs rounded-full font-bold ${p.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white/50'}`}>
+                    <td className="px-4 py-3.5 text-white/30 text-sm">{p.totalSales}</td>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex px-2 py-0.5 text-[10px] rounded-md font-bold ring-1 ${
+                        p.isActive
+                          ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+                          : 'bg-white/[0.04] text-white/30 ring-white/[0.08]'
+                      }`}>
                         {p.isActive ? 'Actif' : 'Inactif'}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
-                      <button onClick={() => handleOpenEdit(p)} className="p-2 text-blue-400 hover:bg-blue-400/20 rounded-lg transition-colors mr-2">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(p.id)} className="p-2 text-rose-400 hover:bg-rose-400/20 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex gap-1 justify-end">
+                        <button onClick={() => handleOpenEdit(p)} className="p-1.5 rounded-lg text-blue-400/60 hover:bg-blue-500/10 transition-colors">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg text-rose-400/60 hover:bg-rose-500/10 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
               {!isLoading && filteredProducts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Search className="w-8 h-8 opacity-30" />
-                      <p className="font-medium">
-                        {products.length === 0 ? 'Aucun produit.' : 'Aucun produit ne correspond aux filtres.'}
-                      </p>
-                      {activeFiltersCount > 0 && (
-                        <button
-                          onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus('active'); }}
-                          className="text-xs text-primary hover:underline mt-1"
-                        >
-                          Réinitialiser les filtres
-                        </button>
-                      )}
-                    </div>
+                  <td colSpan={7} className="p-14 text-center">
+                    <Search className="w-8 h-8 text-white/[0.05] mx-auto mb-2" />
+                    <p className="text-sm text-white/20">
+                      {products.length === 0 ? 'Aucun produit' : 'Aucun produit ne correspond aux filtres'}
+                    </p>
+                    {activeFiltersCount > 0 && (
+                      <button
+                        onClick={() => { setSearch(''); setFilterType(''); setFilterCountry(''); setFilterStatus('active'); }}
+                        className="text-xs text-primary/50 hover:text-primary mt-1 transition-colors"
+                      >
+                        Reinitialiser les filtres
+                      </button>
+                    )}
                   </td>
                 </tr>
               )}
@@ -527,126 +503,115 @@ export function AdminProducts() {
         </div>
       </div>
 
-      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-          <div className="glass-card w-full max-w-2xl bg-card rounded-3xl relative z-10 max-h-[90vh] overflow-y-auto border border-white/10 shadow-2xl">
-            <div className="p-6 border-b border-white/10 flex justify-between items-center sticky top-0 bg-card/90 backdrop-blur-md">
-              <h2 className="text-xl font-bold text-white">{editingId ? 'Modifier Produit' : 'Nouveau Produit'}</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full text-white"><X className="w-5 h-5" /></button>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <div className="w-full max-w-2xl bg-[hsl(240,10%,7%)] rounded-2xl relative z-10 max-h-[90vh] overflow-y-auto border border-white/[0.08] shadow-2xl">
+            <div className="p-5 border-b border-white/[0.06] flex justify-between items-center sticky top-0 bg-[hsl(240,10%,7%)]/95 backdrop-blur-md z-10">
+              <h2 className="text-lg font-black text-white">{editingId ? 'Modifier Produit' : 'Nouveau Produit'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-white/10 rounded-lg text-white/40"><X className="w-4 h-4" /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-
-              {/* ── BOUTIQUE CLASSEMENT ── */}
-              <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
-                <h3 className="text-sm font-black text-primary uppercase tracking-wider">🗂️ Classement Boutique</h3>
-                <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="p-5 space-y-5">
+              <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl space-y-3">
+                <p className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">Classement Boutique</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-bold text-muted-foreground block mb-2">Type de données *</label>
+                    <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Type *</label>
                     <select
                       required
                       value={form.productType}
                       onChange={e => setForm({ ...form, productType: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/[0.15] transition-colors"
                     >
-                      <option value="">-- Choisir type --</option>
+                      <option value="">Choisir type</option>
                       {PRODUCT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm font-bold text-muted-foreground block mb-2">Pays *</label>
+                    <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Pays *</label>
                     <select
                       required
                       value={form.country}
                       onChange={e => setForm({ ...form, country: e.target.value })}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/[0.15] transition-colors"
                     >
-                      <option value="">-- Choisir pays --</option>
+                      <option value="">Choisir pays</option>
                       {COUNTRIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </div>
                 </div>
                 {form.productType && form.country && (
-                  <p className="text-xs text-primary/80 bg-primary/10 px-3 py-2 rounded-lg">
-                    ✓ Apparaîtra dans <strong>{PRODUCT_TYPES.find(t => t.value === form.productType)?.label}</strong> → <strong>{COUNTRIES.find(c => c.value === form.country)?.label}</strong>
+                  <p className="text-[11px] text-primary/50 bg-primary/8 px-3 py-1.5 rounded-lg">
+                    Apparaitra dans {PRODUCT_TYPES.find(t => t.value === form.productType)?.label} &rarr; {COUNTRIES.find(c => c.value === form.country)?.label}
                   </p>
                 )}
               </div>
 
-              {/* ── INFOS ── */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-bold text-muted-foreground block mb-2">Nom du produit</label>
-                  <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field w-full" placeholder="Ex: NUMLIST 🇫🇷 France — 500K numéros" />
+                  <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Nom du produit</label>
+                  <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors" placeholder="Ex: NUMLIST France — 500K numeros" />
                 </div>
                 <div>
-                  <label className="text-sm font-bold text-muted-foreground block mb-2">Description</label>
-                  <textarea required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input-field w-full min-h-[100px]" placeholder="Description détaillée du produit..." />
+                  <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Description</label>
+                  <textarea required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors min-h-[80px]" placeholder="Description detaillee du produit..." />
                 </div>
-                {/* ── OPTIONS DE PRIX ── */}
+
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-bold text-muted-foreground">Options de prix (€)</label>
-                    <button type="button" onClick={addPriceOption} className="flex items-center gap-1 text-xs text-gold hover:text-gold/80 font-semibold transition-colors">
-                      <PlusCircle size={14} /> Ajouter option
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider">Options de prix</label>
+                    <button type="button" onClick={addPriceOption} className="flex items-center gap-1 text-[11px] text-primary/50 hover:text-primary font-medium transition-colors">
+                      <PlusCircle size={12} /> Ajouter
                     </button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {form.priceOptions.map((opt, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <GripVertical size={14} className="text-white/20 flex-shrink-0" />
+                        <GripVertical size={12} className="text-white/10 flex-shrink-0" />
                         <input
                           type="text"
                           placeholder="Label (ex: 10K contacts)"
                           value={opt.label}
                           onChange={e => updatePriceOption(idx, 'label', e.target.value)}
-                          className="input-field flex-1 text-sm"
+                          className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                         />
                         <input
                           type="number"
                           min="1"
-                          placeholder="Lignes livrées"
-                          title="Nombre de LIGNES que le client reçoit (pas le stock total !)"
+                          placeholder="Lignes livrees"
+                          title="Nombre de LIGNES que le client recoit (pas le stock total !)"
                           value={opt.quantity}
                           onChange={e => updatePriceOption(idx, 'quantity', e.target.value)}
-                          className="input-field w-28 text-sm"
+                          className="w-24 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                         />
                         <input
                           type="number"
                           step="0.01"
                           min="0"
-                          placeholder="Prix €"
+                          placeholder="Prix"
                           value={opt.price}
                           onChange={e => updatePriceOption(idx, 'price', e.target.value)}
-                          className="input-field w-24 text-sm"
+                          className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                         />
                         <button
                           type="button"
                           onClick={() => removePriceOption(idx)}
                           disabled={form.priceOptions.length <= 1}
-                          className="text-red-400 hover:text-red-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                          className="text-rose-400/40 hover:text-rose-400 disabled:opacity-10 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                         >
-                          <X size={16} />
+                          <X size={14} />
                         </button>
                       </div>
                     ))}
-                    <p className="text-[11px] text-muted-foreground/60 pl-6">Label · <span className="text-yellow-400/80">Nb lignes livrées au client</span> · Prix — ex: "1000 fiches", <span className="text-yellow-400/80">1000</span>, 29.99</p>
+                    <p className="text-[10px] text-white/15 pl-5">Label / Nb lignes livrees au client / Prix</p>
                   </div>
-                  {form.priceOptions.length > 0 && form.priceOptions[0].price && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Prix de base affiché : <span className="text-gold font-bold">{parseFloat(form.priceOptions[0].price).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</span>
-                      {form.priceOptions.length > 1 && <span className="ml-1">(première option)</span>}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* ── STOCK ── */}
-              <div className="pt-2 border-t border-white/10">
-                <label className="text-sm font-bold text-muted-foreground block mb-2">
-                  📦 Stock total uploadé <span className="text-white/40 font-normal">(nombre total de contacts/mails dans le fichier)</span>
+              <div className="pt-3 border-t border-white/[0.05]">
+                <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">
+                  Stock total uploade
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -654,67 +619,63 @@ export function AdminProducts() {
                     min="0"
                     value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })}
-                    className="input-field w-48"
+                    className="w-44 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                     placeholder="ex: 25000"
                   />
                   {form.stock && (
-                    <span className="text-sm text-white/50">
-                      = <span className="text-white font-bold">{parseInt(form.stock).toLocaleString('fr-FR')}</span> enregistrements
+                    <span className="text-xs text-white/25">
+                      = <span className="text-white/50 font-bold">{parseInt(form.stock).toLocaleString('fr-FR')}</span> enregistrements
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground/60 mt-1">Chaque commande déduira automatiquement la quantité achetée de ce stock.</p>
+                <p className="text-[10px] text-white/15 mt-1">Chaque commande deduit automatiquement la quantite achetee</p>
               </div>
 
-              {/* ── FICHIERS ── */}
-              <div className="space-y-4 pt-2 border-t border-white/10">
-                <h3 className="text-sm font-black text-white/60 uppercase tracking-wider">📁 Fichiers</h3>
-
+              <div className="space-y-4 pt-3 border-t border-white/[0.05]">
+                <p className="text-[10px] font-bold text-white/25 uppercase tracking-wider">Fichiers</p>
                 <FileUploadButton
-                  label="Fichier de stock (données à distribuer)"
+                  label="Fichier de stock (donnees a distribuer)"
                   value={form.fileUrl}
                   onChange={(v, metadata) => setForm({ ...form, fileUrl: v, fileName: metadata?.fileName || '', fileType: metadata?.fileType || '', fileSize: metadata?.fileSize || 0 })}
                   accept=".txt,.csv"
-                  icon={<Upload className="w-5 h-5 text-white/50" />}
+                  icon={<Upload className="w-4 h-4 text-white/25" />}
                   hint="TXT ou CSV — 1 enregistrement par ligne — max 50 MB"
                   initialFileName={form.fileName}
                   initialFileSize={form.fileSize}
                   initialFileType={form.fileType}
                 />
-                <p className="text-[11px] text-amber-400/70 bg-amber-500/10 rounded-lg px-3 py-2 border border-amber-500/20">
-                  ⚡ À chaque commande, un fichier TXT est généré automatiquement avec le nombre d'enregistrements commandés, puis livré au client. Le stock diminue à chaque vente.
+                <p className="text-[10px] text-amber-400/40 bg-amber-500/5 rounded-lg px-3 py-2 border border-amber-500/10">
+                  A chaque commande, un fichier est genere avec le nombre d'enregistrements commandes, puis livre au client. Le stock diminue a chaque vente.
                 </p>
-
                 <FileUploadButton
                   label="Image produit (optionnelle)"
                   value={form.imageUrl}
                   onChange={v => setForm({ ...form, imageUrl: v })}
                   accept="image/*"
-                  icon={<ImageIcon className="w-5 h-5 text-white/50" />}
+                  icon={<ImageIcon className="w-4 h-4 text-white/25" />}
                   hint="JPG, PNG, WebP — max 5 MB"
                 />
               </div>
 
-              {/* ── FLAGS ── */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/[0.05]">
                 {[
-                  { key: 'isActive', label: '✅ Actif', desc: 'Visible en boutique' },
-                  { key: 'isFeatured', label: '⭐ Premium', desc: 'Badge PREMIUM' },
-                  { key: 'isBestSeller', label: '🔥 Best Seller', desc: 'Badge BEST SELLER' },
-                  { key: 'isNew', label: '⚡ Nouveau', desc: 'Badge NOUVEAU' },
+                  { key: 'isActive', label: 'Actif', desc: 'Visible en boutique' },
+                  { key: 'isFeatured', label: 'Premium', desc: 'Badge PREMIUM' },
+                  { key: 'isBestSeller', label: 'Best Seller', desc: 'Badge BEST SELLER' },
+                  { key: 'isNew', label: 'Nouveau', desc: 'Badge NOUVEAU' },
                 ].map(({ key, label, desc }) => (
-                  <label key={key} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
-                    <input type="checkbox" checked={(form as any)[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} className="w-5 h-5 accent-primary rounded" />
+                  <label key={key} className="flex items-center gap-2.5 p-3 bg-white/[0.02] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors border border-transparent hover:border-white/[0.06]">
+                    <input type="checkbox" checked={(form as any)[key]} onChange={e => setForm({ ...form, [key]: e.target.checked })} className="w-4 h-4 accent-primary rounded" />
                     <div>
-                      <p className="text-white font-bold text-sm">{label}</p>
-                      <p className="text-muted-foreground text-[10px]">{desc}</p>
+                      <p className="text-white/70 font-medium text-xs">{label}</p>
+                      <p className="text-white/15 text-[10px]">{desc}</p>
                     </div>
                   </label>
                 ))}
               </div>
 
-              <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="btn-primary w-full py-4 text-lg">
-                {createMut.isPending || updateMut.isPending ? 'Enregistrement...' : (editingId ? '✓ Mettre à jour' : '✓ Créer le produit')}
+              <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="w-full py-3 rounded-xl bg-primary text-black font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                {createMut.isPending || updateMut.isPending ? 'Enregistrement...' : (editingId ? 'Mettre a jour' : 'Creer le produit')}
               </button>
             </form>
           </div>
