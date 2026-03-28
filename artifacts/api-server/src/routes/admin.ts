@@ -100,10 +100,14 @@ async function ensureBotButtonsTable(): Promise<void> {
       url text NOT NULL,
       is_web_app boolean NOT NULL DEFAULT false,
       sort_order integer NOT NULL DEFAULT 0,
+      "row" integer NOT NULL DEFAULT 0,
       is_active boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now()
     )
+  `);
+  await db.execute(sql`
+    ALTER TABLE bot_buttons ADD COLUMN IF NOT EXISTS "row" integer NOT NULL DEFAULT 0
   `);
 
   botButtonsTableEnsured = true;
@@ -703,7 +707,7 @@ router.get("/admin/bot-buttons", requireAdmin, async (_req, res): Promise<void> 
 
 router.post("/admin/bot-buttons", requireAdmin, async (req, res): Promise<void> => {
   await ensureBotButtonsTable();
-  const { label, url, isWebApp, sortOrder } = req.body;
+  const { label, url, isWebApp, sortOrder, row } = req.body;
   if (!label?.trim() || !url?.trim()) {
     res.status(400).json({ error: "label et url sont requis" });
     return;
@@ -713,6 +717,7 @@ router.post("/admin/bot-buttons", requireAdmin, async (req, res): Promise<void> 
     url: url.trim(),
     isWebApp: !!isWebApp,
     sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+    row: typeof row === "number" ? row : 0,
     isActive: true,
   }).returning();
   res.status(201).json(btn);
@@ -722,13 +727,14 @@ router.put("/admin/bot-buttons/:id", requireAdmin, async (req, res): Promise<voi
   await ensureBotButtonsTable();
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
-  const { label, url, isWebApp, sortOrder, isActive } = req.body;
+  const { label, url, isWebApp, sortOrder, row, isActive } = req.body;
 
   const updates: Record<string, unknown> = {};
   if (typeof label === "string") updates.label = label.trim();
   if (typeof url === "string") updates.url = url.trim();
   if (typeof isWebApp === "boolean") updates.isWebApp = isWebApp;
   if (typeof sortOrder === "number") updates.sortOrder = sortOrder;
+  if (typeof row === "number") updates.row = row;
   if (typeof isActive === "boolean") updates.isActive = isActive;
 
   if (Object.keys(updates).length === 0) {

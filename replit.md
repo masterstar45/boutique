@@ -54,13 +54,28 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
+- Entry: `src/index.ts` — reads `PORT`, starts Express. Logs database status (product/order/user counts) on startup for deploy diagnostics.
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
 - Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
 - `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
 - Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `artifacts/bankdata-app` (`@workspace/bankdata-app`)
+
+React + Vite frontend with Telegram Mini App integration.
+
+- **Storefront (mini-app)**: 8 pages in `src/pages/mini-app/` (Home, BoutiqueType, ProductDetail, Cart, Orders, Profile, Contact, Splash)
+  - Layout: `src/components/layout/MiniAppLayout.tsx` — bottom nav bar with 5 items (Accueil, Panier, Commandes, Contact, Profil)
+  - ProductCard: `src/components/ProductCard.tsx` — product grid cards with badges, stock bar, add-to-cart
+  - Flow: Splash → Auth gate → Home → Category → Country → Products → Product detail → Cart → Balance payment
+  - Design system: ultra-dark bg `hsl(240,10%,4%)`, glass cards `bg-white/[0.03] border-white/[0.06]`, gold/yellow primary, shimmer hover effects, Framer Motion animations, `font-display: Outfit`, `font-sans: DM Sans`
+  - CSS utilities in `src/index.css`: `.glass-card`, `.glass-card-hover`, `.glass-panel`, `.text-gradient-gold`, `.shimmer-gold`, `.btn-primary`, `.btn-secondary`, `.input-field`
+- **Admin panel**: 9 pages in `src/pages/admin/` (Dashboard, Products, Orders, Users, Promo, Admins, Affiliation, BotButtons, RubriqueCountries)
+  - Layout: `src/components/layout/AdminLayout.tsx` — sidebar with collapsible navigation organized into sections (Principal, Clients, Configuration)
+  - Design system: dark theme, `bg-white/[0.02]` cards with `border-white/[0.05]`, consistent table headers, primary color gold/yellow
+- Auth: Telegram WebApp authentication via JWT tokens
 
 ### `lib/db` (`@workspace/db`)
 
@@ -72,7 +87,7 @@ Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client insta
 - `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
 - Exports: `.` (pool, db, schema), `./schema` (schema only)
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+Schema updates: Use `pnpm --filter @workspace/db run push` (interactive, safe). `push-force` is **disabled** to prevent data loss. For schema changes with auto-backup: `pnpm --filter @workspace/db run safe-push`. Migration files are generated via `pnpm --filter @workspace/db run generate` into `drizzle/` folder.
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
@@ -94,3 +109,7 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+Available scripts:
+- `db-backup` — Exports all 13 tables to a timestamped JSON file in `scripts/backups/`
+- `db-restore` — Restores from the latest backup (or a specified file). Uses transactions with rollback on failure. Resets serial sequences.

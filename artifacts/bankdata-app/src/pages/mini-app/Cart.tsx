@@ -94,30 +94,29 @@ export function Cart() {
 
   return (
     <MiniAppLayout>
-      <div className="p-6 pb-32">
-        <h1 className="text-2xl font-display font-black text-white mb-6">Mon Panier</h1>
+      <div className="p-5 pb-32">
+        <h1 className="text-xl font-display font-black text-white mb-5">Mon Panier</h1>
 
-        {/* Solde disponible */}
         {user && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-5 flex items-center justify-between glass-card p-4 rounded-2xl border border-white/10"
+            className="mb-4 flex items-center justify-between glass-card p-3.5 rounded-2xl"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-                <Wallet className="w-4.5 h-4.5 text-primary" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Wallet className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Votre solde</p>
-                <p className="font-black text-white text-lg leading-tight">{formatMoney(balance)}</p>
+                <p className="text-[10px] text-white/40">Votre solde</p>
+                <p className="font-black text-white text-base leading-tight">{formatMoney(balance)}</p>
               </div>
             </div>
             {items.length > 0 && (
-              <div className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
+              <div className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
                 hasEnoughBalance
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  ? 'bg-emerald-500/10 text-emerald-400/80 border border-emerald-500/20'
+                  : 'bg-rose-500/10 text-rose-400/80 border border-rose-500/20'
               }`}>
                 {hasEnoughBalance ? 'Suffisant' : 'Insuffisant'}
               </div>
@@ -126,74 +125,66 @@ export function Cart() {
         )}
 
         {items.length === 0 ? (
-          <div className="text-center py-20 flex flex-col items-center">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10">
-              <ShoppingCart className="w-10 h-10 text-muted-foreground" />
+          <div className="text-center py-16 flex flex-col items-center">
+            <div className="w-16 h-16 bg-white/[0.03] rounded-full flex items-center justify-center mb-3 border border-white/[0.06]">
+              <ShoppingCart className="w-8 h-8 text-white/15" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Panier vide</h2>
-            <p className="text-muted-foreground mb-6">Ajoutez des produits pour commencer.</p>
-            <Link href="/" className="btn-primary inline-flex items-center gap-2">
-              Voir la boutique <ChevronRight className="w-4 h-4" />
+            <h2 className="text-lg font-bold text-white mb-1">Panier vide</h2>
+            <p className="text-white/30 text-sm mb-5">Ajoutez des produits pour commencer.</p>
+            <Link href="/" className="btn-primary inline-flex items-center gap-2 text-sm">
+              Voir la boutique <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="space-y-4">
+          <div className="space-y-4">
+            <div className="space-y-2.5">
               {items.map(item => {
                 const optLabel = item.selectedOption?.label;
                 const unitPrice = item.selectedOption ? parseFloat(item.selectedOption.price) : parseFloat(item.product.price);
                 const records = item.selectedOption ? parseInt(item.selectedOption.quantity, 10) : null;
 
                 return (
-                  <div key={`${item.product.id}_${optLabel ?? ''}`} className="glass-card p-4 rounded-2xl flex gap-4">
-                    <div className="w-20 h-20 bg-black/40 rounded-xl overflow-hidden flex-shrink-0">
+                  <div key={`${item.product.id}_${optLabel ?? ''}`} className="glass-card p-3.5 rounded-2xl flex gap-3">
+                    <div className="w-16 h-16 bg-white/[0.03] rounded-xl overflow-hidden flex-shrink-0 border border-white/[0.04]">
                       {item.product.imageUrl ? (
                         <img src={resolveImageUrl(item.product.imageUrl)} className="w-full h-full object-cover" alt={item.product.name} />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
+                        <div className="w-full h-full flex items-center justify-center text-xl">📦</div>
                       )}
                     </div>
-                    <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex-1 flex flex-col justify-between min-w-0">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-white text-sm line-clamp-2">{item.product.name}</h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-white text-sm line-clamp-1">{item.product.name}</h3>
                           {optLabel && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Package className="w-3 h-3 text-primary/70" />
-                              <span className="text-[11px] text-primary/80 font-semibold">{optLabel}</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Package className="w-2.5 h-2.5 text-primary/50" />
+                              <span className="text-[10px] text-primary/60 font-semibold">{optLabel}</span>
                             </div>
-                          )}
-                          {records && records > 0 && (
-                            <p className="text-[10px] text-white/30 mt-0.5">{records.toLocaleString('fr-FR')} enregistrements</p>
                           )}
                         </div>
                         <button
                           onClick={() => removeFromCart(item.product.id, optLabel)}
-                          className="text-muted-foreground hover:text-destructive transition-colors p-1 flex-shrink-0"
+                          className="text-white/15 hover:text-rose-400 transition-colors p-0.5 flex-shrink-0"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <div className="flex justify-between items-end mt-3">
-                        <div>
-                          <p className="font-bold text-primary text-sm">{formatMoney(unitPrice)}</p>
-                          {item.quantity > 1 && (
-                            <p className="text-[10px] text-white/30">= {formatMoney(unitPrice * item.quantity)}</p>
-                          )}
-                        </div>
+                      <div className="flex justify-between items-end mt-2">
+                        <p className="font-bold text-primary text-sm">{formatMoney(unitPrice)}</p>
                         {!optLabel && (
-                          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg p-1">
-                            <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1 text-white hover:text-primary">
-                              <Minus className="w-3.5 h-3.5" />
+                          <div className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5">
+                            <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="p-1 text-white/40 hover:text-primary transition-colors">
+                              <Minus className="w-3 h-3" />
                             </button>
-                            <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 text-white hover:text-primary">
-                              <Plus className="w-3.5 h-3.5" />
+                            <span className="font-bold text-xs w-4 text-center">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.product.id, item.quantity + 1)} className="p-1 text-white/40 hover:text-primary transition-colors">
+                              <Plus className="w-3 h-3" />
                             </button>
                           </div>
                         )}
                         {optLabel && (
-                          <span className="text-xs text-white/30">Qté : 1</span>
+                          <span className="text-[10px] text-white/20">Qté : 1</span>
                         )}
                       </div>
                     </div>
@@ -202,95 +193,91 @@ export function Cart() {
               })}
             </div>
 
-            {/* Promo Code */}
-            <div className="glass-card p-4 rounded-2xl flex gap-2">
+            <div className="glass-card p-3.5 rounded-2xl flex gap-2">
               <div className="relative flex-1">
-                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
                 <input
                   type="text"
                   placeholder="Code promo"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                   disabled={!!activePromo}
-                  className="input-field pl-10 h-12 text-sm"
+                  className="input-field pl-9 h-10 text-sm"
                 />
               </div>
               {!activePromo ? (
                 <button
                   onClick={handleApplyPromo}
                   disabled={!promoCode || validatePromo.isPending}
-                  className="px-6 rounded-xl bg-white/10 font-bold text-white hover:bg-white/20 transition-colors disabled:opacity-50"
+                  className="px-4 rounded-xl bg-white/[0.05] font-bold text-sm text-white hover:bg-white/[0.1] transition-colors disabled:opacity-40 border border-white/[0.06]"
                 >
-                  {validatePromo.isPending ? '...' : 'Appliquer'}
+                  {validatePromo.isPending ? '...' : 'OK'}
                 </button>
               ) : (
-                <div className="px-4 flex items-center justify-center gap-2 bg-emerald-500/20 text-emerald-400 font-bold rounded-xl border border-emerald-500/30">
-                  <CheckCircle2 className="w-4 h-4" /> OK
+                <div className="px-3 flex items-center justify-center gap-1.5 bg-emerald-500/10 text-emerald-400 font-bold text-sm rounded-xl border border-emerald-500/20">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               )}
             </div>
 
-            {/* Summary */}
-            <div className="glass-card p-6 rounded-2xl space-y-4">
-              <h3 className="font-bold text-white mb-2">Résumé</h3>
-              <div className="flex justify-between text-muted-foreground text-sm">
+            <div className="glass-card p-5 rounded-2xl space-y-3">
+              <h3 className="font-bold text-white text-sm mb-1">Résumé</h3>
+              <div className="flex justify-between text-white/50 text-xs">
                 <span>Sous-total ({items.length} article{items.length > 1 ? 's' : ''})</span>
                 <span>{formatMoney(totalPrice)}</span>
               </div>
               {activePromo && (
-                <div className="flex justify-between text-emerald-400 text-sm font-medium">
+                <div className="flex justify-between text-emerald-400/80 text-xs font-medium">
                   <span>Réduction ({activePromo.code})</span>
                   <span>-{formatMoney(activePromo.discountAmount)}</span>
                 </div>
               )}
-              <div className="h-px w-full bg-white/10" />
+              <div className="h-px w-full bg-white/[0.04]" />
               <div className="flex justify-between items-center">
-                <span className="font-bold text-white text-lg">Total</span>
-                <span className="font-black text-2xl text-gradient-gold">{formatMoney(finalPrice)}</span>
+                <span className="font-bold text-white text-sm">Total</span>
+                <span className="font-black text-xl text-gradient-gold">{formatMoney(finalPrice)}</span>
               </div>
-              <div className="h-px w-full bg-white/10" />
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Solde après paiement</span>
-                <span className={`font-bold ${hasEnoughBalance ? 'text-white' : 'text-rose-400'}`}>
+              <div className="h-px w-full bg-white/[0.04]" />
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-white/40">Après paiement</span>
+                <span className={`font-bold ${hasEnoughBalance ? 'text-white/60' : 'text-rose-400/70'}`}>
                   {hasEnoughBalance ? formatMoney(balance - finalPrice) : '—'}
                 </span>
               </div>
             </div>
 
-            {/* Alerte solde insuffisant */}
             <AnimatePresence>
               {!hasEnoughBalance && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400"
+                  className="flex items-start gap-2.5 p-3.5 bg-rose-500/[0.06] border border-rose-500/15 rounded-xl text-rose-400/80"
                 >
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-sm">Solde insuffisant</p>
-                    <p className="text-xs mt-0.5 text-rose-400/70">
-                      Il vous manque <strong>{formatMoney(finalPrice - balance)}</strong>. Rechargez votre solde depuis votre profil.
+                    <p className="font-semibold text-xs">Solde insuffisant</p>
+                    <p className="text-[10px] mt-0.5 text-rose-400/50">
+                      Il manque <strong>{formatMoney(finalPrice - balance)}</strong>. Rechargez depuis votre profil.
                     </p>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Checkout */}
             <button
               onClick={handleCheckout}
               disabled={isProcessing || !hasEnoughBalance}
-              className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full btn-primary py-3.5 text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Traitement en cours...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Traitement...
                 </>
               ) : (
                 <>
-                  <Wallet className="w-5 h-5" />
+                  <Wallet className="w-4 h-4" />
                   Payer avec mon solde
                 </>
               )}

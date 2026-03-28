@@ -71,7 +71,7 @@ export function AdminAdmins() {
   };
 
   const handleRevoke = async (userId: number, username: string | null) => {
-    if (!confirm(`Retirer les droits admin à @${username || userId} ?`)) return;
+    if (!confirm(`Retirer les droits admin a @${username || userId} ?`)) return;
     setRevoking(userId);
     try {
       const token = localStorage.getItem('bankdata_token');
@@ -82,7 +82,7 @@ export function AdminAdmins() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
       queryClient.invalidateQueries({ queryKey: ['/api/admin/admins'] });
-      toast({ title: 'Droits retirés', description: `@${username || userId} n'est plus admin.` });
+      toast({ title: 'Droits retires', description: `@${username || userId} n'est plus admin.` });
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erreur', description: err.message });
     } finally {
@@ -108,7 +108,7 @@ export function AdminAdmins() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
       setCreditResult(data);
-      toast({ title: '✅ Crédit effectué', description: `+${parseFloat(data.credited).toFixed(2)} € crédités.` });
+      toast({ title: 'Credit effectue', description: `+${parseFloat(data.credited).toFixed(2)} credites.` });
       setCreditTelegramId('');
       setCreditAmount('');
       setCreditNote('');
@@ -122,38 +122,36 @@ export function AdminAdmins() {
   return (
     <AdminLayout>
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-display font-black text-white">Admins & Crédits</h1>
-        <p className="text-muted-foreground text-sm mt-1">Gérer les accès administrateurs et créditer des clients.</p>
+        <h1 className="text-2xl font-black text-white tracking-tight">Admins & Credits</h1>
+        <p className="text-white/30 text-sm mt-0.5">Gerer les acces administrateurs et crediter des clients</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-        {/* ─── Créditer un client ─── */}
-        <div className="glass-card rounded-2xl p-6 space-y-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-emerald-400" />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-emerald-400" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-lg">Créditer un client</h2>
-              <p className="text-xs text-muted-foreground">Ajoute du solde via Telegram ID</p>
+              <h2 className="font-bold text-white text-base">Crediter un client</h2>
+              <p className="text-[11px] text-white/25">Ajouter du solde via Telegram ID</p>
             </div>
           </div>
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Telegram ID du client</label>
+              <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1 block">Telegram ID</label>
               <input
                 type="text"
                 value={creditTelegramId}
                 onChange={e => { setCreditResult(null); setCreditTelegramId(e.target.value); }}
                 placeholder="ex: 5818221358"
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-sm"
+                className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/15 focus:outline-none focus:border-white/[0.15] transition-all font-mono text-sm"
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Montant (€)</label>
-              <div className="relative">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1 block">Montant</label>
                 <input
                   type="number"
                   min="0.01"
@@ -161,32 +159,31 @@ export function AdminAdmins() {
                   value={creditAmount}
                   onChange={e => setCreditAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all text-sm"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/15 focus:outline-none focus:border-white/[0.15] transition-all text-sm"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">€</span>
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Note (optionnel)</label>
-              <input
-                type="text"
-                value={creditNote}
-                onChange={e => setCreditNote(e.target.value)}
-                placeholder="ex: Remboursement, Compensation..."
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all text-sm"
-              />
+              <div>
+                <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1 block">Note</label>
+                <input
+                  type="text"
+                  value={creditNote}
+                  onChange={e => setCreditNote(e.target.value)}
+                  placeholder="Optionnel"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/15 focus:outline-none focus:border-white/[0.15] transition-all text-sm"
+                />
+              </div>
             </div>
           </div>
 
           {creditResult && (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+            <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/15 flex items-start gap-2.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-bold text-white">
-                  +{parseFloat(creditResult.credited).toFixed(2)} € crédités à {creditResult.firstName}
+                <p className="text-sm font-semibold text-white">
+                  +{parseFloat(creditResult.credited).toFixed(2)} credites a {creditResult.firstName}
                   {creditResult.username ? ` (@${creditResult.username})` : ''}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">Nouveau solde : {formatMoney(creditResult.newBalance)} — Notification Telegram envoyée ✓</p>
+                <p className="text-[11px] text-white/30 mt-0.5">Nouveau solde : {formatMoney(creditResult.newBalance)}</p>
               </div>
             </div>
           )}
@@ -194,81 +191,78 @@ export function AdminAdmins() {
           <button
             onClick={handleCredit}
             disabled={crediting || !creditTelegramId.trim() || !creditAmount}
-            className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed text-black font-bold text-sm transition-all flex items-center justify-center gap-2"
           >
             {crediting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-            {crediting ? 'Crédit en cours...' : 'Créditer le solde'}
+            {crediting ? 'En cours...' : 'Crediter'}
           </button>
         </div>
 
-        {/* ─── Promouvoir un admin ─── */}
-        <div className="glass-card rounded-2xl p-6 space-y-5">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <UserPlus className="w-5 h-5 text-primary" />
+        <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <UserPlus className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h2 className="font-bold text-white text-lg">Promouvoir un admin</h2>
-              <p className="text-xs text-muted-foreground">Donne les droits admin via Telegram ID</p>
+              <h2 className="font-bold text-white text-base">Promouvoir un admin</h2>
+              <p className="text-[11px] text-white/25">Donner les droits via Telegram ID</p>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Telegram ID de l'utilisateur</label>
+            <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider mb-1 block">Telegram ID</label>
             <input
               type="text"
               value={promoteId}
               onChange={e => setPromoteId(e.target.value)}
               placeholder="ex: 5818221358"
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-sm"
+              className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/15 focus:outline-none focus:border-white/[0.15] transition-all font-mono text-sm"
             />
-            <p className="text-xs text-muted-foreground mt-2">L'utilisateur doit s'être connecté au moins une fois au mini app.</p>
+            <p className="text-[11px] text-white/20 mt-1.5">L'utilisateur doit s'etre connecte au moins une fois.</p>
           </div>
 
           <button
             onClick={handlePromote}
             disabled={promoting || !promoteId.trim()}
-            className="w-full py-3 rounded-xl bg-primary hover:bg-primary/80 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary/80 disabled:opacity-30 disabled:cursor-not-allowed text-black font-bold text-sm transition-all flex items-center justify-center gap-2"
           >
             {promoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-            {promoting ? 'Promotion...' : 'Promouvoir admin'}
+            {promoting ? 'Promotion...' : 'Promouvoir'}
           </button>
 
-          {/* Liste des admins */}
-          <div className="pt-4 border-t border-white/5">
+          <div className="pt-3 border-t border-white/[0.04]">
             <div className="flex items-center gap-2 mb-3">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <h3 className="text-sm font-bold text-white">Admins actifs ({admins.length})</h3>
+              <Users className="w-3.5 h-3.5 text-white/25" />
+              <h3 className="text-xs font-bold text-white/50">Admins actifs ({admins.length})</h3>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {isLoading ? (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  <Loader2 className="w-4 h-4 animate-spin text-white/20" />
                 </div>
               ) : admins.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">Aucun admin.</p>
+                <p className="text-[11px] text-white/20 py-4 text-center">Aucun admin</p>
               ) : (
                 admins.map(admin => (
-                  <div key={admin.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div key={admin.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {admin.photoUrl
                           ? <img src={admin.photoUrl} className="w-full h-full object-cover" alt="" />
-                          : <ShieldCheck className="w-4 h-4 text-primary" />}
+                          : <ShieldCheck className="w-3.5 h-3.5 text-primary" />}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-white">{admin.firstName}{admin.lastName ? ` ${admin.lastName}` : ''}</div>
-                        <div className="text-xs text-primary">@{admin.username || admin.telegramId}</div>
+                        <div className="text-xs font-semibold text-white">{admin.firstName}{admin.lastName ? ` ${admin.lastName}` : ''}</div>
+                        <div className="text-[10px] text-primary/60">@{admin.username || admin.telegramId}</div>
                       </div>
                     </div>
                     {admin.id === currentUser?.id ? (
-                      <span className="text-xs text-muted-foreground italic">Vous</span>
+                      <span className="text-[10px] text-white/20">Vous</span>
                     ) : (
                       <button
                         onClick={() => handleRevoke(admin.id, admin.username)}
                         disabled={revoking === admin.id}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-all disabled:opacity-40"
-                        title="Retirer les droits admin"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-rose-400/70 hover:bg-rose-500/10 transition-all disabled:opacity-30"
                       >
                         {revoking === admin.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldOff className="w-3 h-3" />}
                         Retirer

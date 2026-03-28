@@ -32,76 +32,72 @@ export function ProductCard({ product }: { product: ProductSummary }) {
   return (
     <Link href={`/produit/${product.id}`} className="block group">
       <motion.div 
-        whileHover={{ y: -5 }}
-        className="glass-card rounded-2xl overflow-hidden h-full flex flex-col relative"
+        whileHover={{ y: -3 }}
+        className="glass-card-hover rounded-2xl overflow-hidden h-full flex flex-col relative"
       >
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
           {product.isFeatured && (
-            <div className="bg-primary/20 text-primary text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-md flex items-center gap-1 border border-primary/30">
-              <Star className="w-3 h-3 fill-primary" /> PREMIUM
+            <div className="bg-black/50 text-primary text-[9px] font-bold px-2 py-0.5 rounded-lg backdrop-blur-md flex items-center gap-1 border border-primary/20">
+              <Star className="w-2.5 h-2.5 fill-primary" /> PREMIUM
             </div>
           )}
           {product.isNew && (
-            <div className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-md flex items-center gap-1 border border-blue-500/30">
-              <Sparkles className="w-3 h-3" /> NOUVEAU
+            <div className="bg-black/50 text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-lg backdrop-blur-md flex items-center gap-1 border border-blue-500/20">
+              <Sparkles className="w-2.5 h-2.5" /> NOUVEAU
             </div>
           )}
           {product.isBestSeller && (
-            <div className="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-md flex items-center gap-1 border border-rose-500/30">
-              <TrendingUp className="w-3 h-3" /> BEST SELLER
+            <div className="bg-black/50 text-rose-400 text-[9px] font-bold px-2 py-0.5 rounded-lg backdrop-blur-md flex items-center gap-1 border border-rose-500/20">
+              <TrendingUp className="w-2.5 h-2.5" /> BEST
             </div>
           )}
         </div>
 
-        {/* Image / Icon */}
-        <div className="h-40 w-full bg-gradient-to-br from-white/5 to-transparent relative flex items-center justify-center border-b border-white/5 overflow-hidden">
+        <div className="h-36 w-full relative flex items-center justify-center overflow-hidden bg-gradient-to-b from-white/[0.03] to-transparent">
           {product.imageUrl ? (
-            <img src={resolveImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+            <>
+              <img src={resolveImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+            </>
           ) : (
-            <div className="text-6xl group-hover:scale-110 transition-transform duration-500">
+            <div className="text-5xl opacity-60 group-hover:scale-105 transition-transform duration-500">
               📦
             </div>
           )}
         </div>
 
-        {/* Content */}
-        <div className="p-4 flex flex-col flex-grow">
-          <h3 className="font-bold text-white leading-tight line-clamp-2 mb-1 group-hover:text-primary transition-colors">
+        <div className="p-3.5 flex flex-col flex-grow">
+          <h3 className="font-bold text-sm text-white leading-tight line-clamp-2 mb-1.5 group-hover:text-primary/90 transition-colors">
             {product.name}
           </h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-4">
-            {product.description}
-          </p>
           
-          {/* Stock disponible */}
           {(product.stock ?? 0) > 0 && (
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-[10px] mb-1">
-                <span className="text-white/40">Stock disponible</span>
-                <span className={`font-bold ${(product.stockAvailable ?? 0) > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {(product.stockAvailable ?? 0).toLocaleString('fr-FR')} enr.
+            <div className="mb-2.5">
+              <div className="flex items-center justify-between text-[9px] mb-1">
+                <span className="text-white/40">Stock</span>
+                <span className={`font-bold ${(product.stockAvailable ?? 0) > 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
+                  {(product.stockAvailable ?? 0).toLocaleString('fr-FR')}
                 </span>
               </div>
-              <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500/80 to-emerald-400/80 transition-all"
                   style={{ width: `${Math.max(0, Math.min(100, ((product.stockAvailable ?? 0) / (product.stock ?? 1)) * 100))}%` }}
                 />
               </div>
             </div>
           )}
 
-          <div className="mt-auto flex items-center justify-between">
-            <span className="text-lg font-black text-gradient-gold">
+          <div className="mt-auto flex items-center justify-between pt-1">
+            <span className="text-base font-black text-gradient-gold">
               {formatMoney(product.price)}
             </span>
             <button
               onClick={handleAdd}
-              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center border border-white/10 hover:border-primary/50 transition-all active:scale-95"
+              className="w-9 h-9 rounded-xl bg-primary/10 hover:bg-primary/25 text-primary flex items-center justify-center border border-primary/20 hover:border-primary/40 transition-all duration-200 active:scale-90"
               title={hasOptions ? 'Choisir une option' : 'Ajouter au panier'}
             >
-              {hasOptions ? <ChevronRight className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
+              {hasOptions ? <ChevronRight className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
             </button>
           </div>
         </div>
