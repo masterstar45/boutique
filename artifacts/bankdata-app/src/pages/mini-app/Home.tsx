@@ -46,7 +46,7 @@ const CATEGORIES = [
     key: 'numlist',
     label: 'NUMLIST',
     icon: '📱',
-    subtitle: 'Listes de numéros',
+    subtitle: 'Bases numéro check',
     gradient: 'from-blue-500/25 via-blue-600/15 to-blue-900/5',
     border: 'border-blue-500/25',
     accent: 'text-blue-400',
