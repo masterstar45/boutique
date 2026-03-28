@@ -124,11 +124,18 @@ async function buildStartKeyboard(miniAppUrl: string): Promise<TelegramBot.Inlin
     }
 
     const keyboard: TelegramBot.InlineKeyboardButton[][] = [[defaultBtn]];
+    const rowGroups = new Map<number, TelegramBot.InlineKeyboardButton[]>();
     for (const btn of buttons) {
       const button: TelegramBot.InlineKeyboardButton = btn.isWebApp
         ? { text: btn.label, web_app: { url: btn.url } }
         : { text: btn.label, url: btn.url };
-      keyboard.push([button]);
+      const rowNum = btn.row ?? 0;
+      if (!rowGroups.has(rowNum)) rowGroups.set(rowNum, []);
+      rowGroups.get(rowNum)!.push(button);
+    }
+    const sortedRows = [...rowGroups.entries()].sort((a, b) => a[0] - b[0]);
+    for (const [, rowButtons] of sortedRows) {
+      keyboard.push(rowButtons);
     }
     return keyboard;
   } catch (err) {

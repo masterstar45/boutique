@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Plus, Edit2, Trash2, X, GripVertical, ExternalLink, AppWindow, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, GripVertical, ExternalLink, AppWindow, ToggleLeft, ToggleRight, Loader2, Rows3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BotButton {
@@ -9,11 +9,12 @@ interface BotButton {
   url: string;
   isWebApp: boolean;
   sortOrder: number;
+  row: number;
   isActive: boolean;
   createdAt: string;
 }
 
-const EMPTY_FORM = { label: '', url: '', isWebApp: false, sortOrder: 0 };
+const EMPTY_FORM = { label: '', url: '', isWebApp: false, sortOrder: 0, row: 0 };
 
 function normalizeUrlInput(raw: string): string {
   const value = raw.trim();
@@ -54,13 +55,14 @@ export function AdminBotButtons() {
   useEffect(() => { loadButtons(); }, [loadButtons]);
 
   const handleOpenNew = () => {
-    setForm({ ...EMPTY_FORM, sortOrder: buttons.length });
+    const maxRow = buttons.length > 0 ? Math.max(...buttons.map(b => b.row)) : -1;
+    setForm({ ...EMPTY_FORM, sortOrder: buttons.length, row: maxRow + 1 });
     setEditingId(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (btn: BotButton) => {
-    setForm({ label: btn.label, url: btn.url, isWebApp: btn.isWebApp, sortOrder: btn.sortOrder });
+    setForm({ label: btn.label, url: btn.url, isWebApp: btn.isWebApp, sortOrder: btn.sortOrder, row: btn.row ?? 0 });
     setEditingId(btn.id);
     setIsModalOpen(true);
   };
@@ -131,6 +133,21 @@ export function AdminBotButtons() {
 
   const sortedButtons = [...buttons].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 
+  const activeButtons = buttons.filter(b => b.isActive).sort((a, b) => (a.row ?? 0) - (b.row ?? 0) || a.sortOrder - b.sortOrder);
+  const previewRows: BotButton[][] = [];
+  for (const btn of activeButtons) {
+    const rowNum = btn.row ?? 0;
+    const existing = previewRows.find((_, i) => {
+      const first = previewRows[i]?.[0];
+      return first && (first.row ?? 0) === rowNum;
+    });
+    if (existing) {
+      existing.push(btn);
+    } else {
+      previewRows.push([btn]);
+    }
+  }
+
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
@@ -144,7 +161,7 @@ export function AdminBotButtons() {
       </div>
 
       <div className="rounded-xl bg-primary/5 border border-primary/10 p-3 mb-5 text-xs text-primary/60">
-        Le bouton "Acceder a la boutique" est toujours affiche en premier. Les boutons ci-dessous s'ajoutent en dessous.
+        Le bouton "Acceder a la boutique" est toujours affiche en premier. Les boutons avec le meme numero de <strong className="text-primary/80">ligne</strong> s'affichent cote a cote sur Telegram.
       </div>
 
       <div className="rounded-2xl bg-white/[0.02] border border-white/[0.05] p-5 mb-5">
@@ -153,12 +170,16 @@ export function AdminBotButtons() {
           <div className="bg-[#2f6ea5] text-white text-center py-2 px-4 rounded-lg text-sm font-medium">
             Acceder a la boutique
           </div>
-          {buttons.filter(b => b.isActive).sort((a, b) => a.sortOrder - b.sortOrder).map(btn => (
-            <div key={btn.id} className="bg-[#2f6ea5] text-white text-center py-2 px-4 rounded-lg text-sm font-medium opacity-80">
-              {btn.label}
+          {previewRows.map((rowBtns, i) => (
+            <div key={i} className="flex gap-1.5">
+              {rowBtns.map(btn => (
+                <div key={btn.id} className="flex-1 bg-[#2f6ea5] text-white text-center py-2 px-2 rounded-lg text-sm font-medium opacity-80 truncate">
+                  {btn.label}
+                </div>
+              ))}
             </div>
           ))}
-          {buttons.filter(b => b.isActive).length === 0 && (
+          {activeButtons.length === 0 && (
             <p className="text-center text-white/20 text-[11px] py-1">Aucun bouton personnalise</p>
           )}
         </div>
@@ -170,6 +191,7 @@ export function AdminBotButtons() {
             <thead>
               <tr className="border-b border-white/[0.04]">
                 <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider w-12">Ordre</th>
+                <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider w-12">Ligne</th>
                 <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Label</th>
                 <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">URL</th>
                 <th className="px-4 py-3 text-[10px] text-white/25 font-semibold uppercase tracking-wider">Type</th>
@@ -179,15 +201,21 @@ export function AdminBotButtons() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} className="p-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-white/15 mx-auto" /></td></tr>
+                <tr><td colSpan={7} className="p-8 text-center"><Loader2 className="w-5 h-5 animate-spin text-white/15 mx-auto" /></td></tr>
               ) : buttons.length === 0 ? (
-                <tr><td colSpan={6} className="p-14 text-center text-white/20 text-sm">Aucun bouton personnalise</td></tr>
+                <tr><td colSpan={7} className="p-14 text-center text-white/20 text-sm">Aucun bouton personnalise</td></tr>
               ) : sortedButtons.map(btn => (
                 <tr key={btn.id} className="border-b border-white/[0.03] hover:bg-white/[0.015] transition-colors">
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 text-white/30">
                       <GripVertical className="w-3.5 h-3.5" />
                       <span className="font-mono text-xs">{btn.sortOrder}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-1 text-white/30">
+                      <Rows3 className="w-3.5 h-3.5" />
+                      <span className="font-mono text-xs">{btn.row ?? 0}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3.5 font-medium text-white text-sm">{btn.label}</td>
@@ -281,15 +309,29 @@ export function AdminBotButtons() {
                   </button>
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Ordre</label>
-                <input
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={e => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/[0.15] transition-colors"
-                  min={0}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Ligne</label>
+                  <input
+                    type="number"
+                    value={form.row}
+                    onChange={e => setForm({ ...form, row: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/[0.15] transition-colors"
+                    min={0}
+                  />
+                  <p className="text-[9px] text-white/20 mt-1">Meme ligne = cote a cote</p>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-white/25 uppercase tracking-wider block mb-1.5">Ordre</label>
+                  <input
+                    type="number"
+                    value={form.sortOrder}
+                    onChange={e => setForm({ ...form, sortOrder: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-white/[0.15] transition-colors"
+                    min={0}
+                  />
+                  <p className="text-[9px] text-white/20 mt-1">Position dans la ligne</p>
+                </div>
               </div>
               <button type="submit" className="w-full py-3 rounded-xl bg-primary text-black font-bold text-sm hover:bg-primary/90 transition-colors">
                 {editingId !== null ? 'Sauvegarder' : 'Creer'}
