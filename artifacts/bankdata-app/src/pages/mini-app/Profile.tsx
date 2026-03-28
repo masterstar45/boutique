@@ -103,7 +103,7 @@ export function Profile() {
           clearPolling();
           setDepositState({ step: 'confirmed', deposit: data });
           refreshUser?.();
-          toast({ title: '✅ Dépôt confirmé !', description: `Votre solde a été rechargé.` });
+          toast({ title: 'Dépôt confirmé !', description: `Votre solde a été rechargé.` });
         }
       } catch {}
     }, 5000);
@@ -125,103 +125,95 @@ export function Profile() {
 
   return (
     <MiniAppLayout>
-      <div className="p-6 space-y-6">
-        {/* Profile Header */}
-        <div className="flex flex-col items-center pt-4 pb-6">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-yellow-600 p-1 mb-4 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
-            <div className="w-full h-full bg-card rounded-full overflow-hidden flex items-center justify-center border-2 border-background">
+      <div className="p-5 space-y-4">
+        <div className="flex flex-col items-center pt-3 pb-4">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-yellow-600 p-[3px] mb-3 shadow-[0_0_16px_rgba(234,179,8,0.2)]">
+            <div className="w-full h-full bg-background rounded-full overflow-hidden flex items-center justify-center border-2 border-background">
               {user?.photoUrl ? (
                 <img src={user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <UserCircle className="w-16 h-16 text-muted-foreground" />
+                <UserCircle className="w-12 h-12 text-white/15" />
               )}
             </div>
           </div>
-          <h1 className="text-2xl font-black text-white">{user?.firstName} {user?.lastName}</h1>
-          <p className="text-muted-foreground text-sm font-medium">@{user?.username} • ID: {user?.telegramId}</p>
+          <h1 className="text-xl font-black text-white">{user?.firstName} {user?.lastName}</h1>
+          <p className="text-white/30 text-xs font-medium">@{user?.username} • ID: {user?.telegramId}</p>
         </div>
 
-        {/* Balance Card */}
-        <div className="glass-card p-6 rounded-3xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 blur-3xl rounded-full" />
-          <p className="text-sm font-bold text-white/70 mb-1 relative z-10 flex items-center gap-2">
-            <Wallet className="w-4 h-4" /> Solde Principal
+        <div className="glass-card p-5 rounded-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-28 h-28 bg-primary/15 blur-3xl rounded-full" />
+          <p className="text-xs font-bold text-white/40 mb-0.5 relative z-10 flex items-center gap-1.5">
+            <Wallet className="w-3.5 h-3.5" /> Solde Principal
           </p>
-          <h2 className="text-4xl font-black text-gradient-gold relative z-10 mb-4">
+          <h2 className="text-3xl font-black text-gradient-gold relative z-10 mb-3">
             {formatMoney(user?.balance || 0)}
           </h2>
           <button
             onClick={openModal}
-            className="w-full py-3 bg-primary/20 hover:bg-primary/30 text-primary font-bold rounded-xl border border-primary/30 transition-colors relative z-10 flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-sm rounded-xl border border-primary/20 transition-colors relative z-10 flex items-center justify-center gap-2"
           >
-            <Wallet className="w-4 h-4" /> Recharger mon solde
-            <ChevronRight className="w-4 h-4 ml-auto" />
+            <Wallet className="w-3.5 h-3.5" /> Recharger
+            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
           </button>
         </div>
 
-        {/* Affiliate System */}
-        <div className="glass-card p-5 rounded-3xl space-y-4">
-          <h3 className="font-bold text-white">Affiliation</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-              <p className="text-xs text-muted-foreground mb-1">Référés</p>
-              <p className="text-lg font-bold text-white">{affiliate?.totalReferrals || 0}</p>
+        <div className="glass-card p-4 rounded-2xl space-y-3">
+          <h3 className="font-bold text-white text-sm">Affiliation</h3>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+              <p className="text-[10px] text-white/25 mb-0.5">Référés</p>
+              <p className="text-base font-bold text-white">{affiliate?.totalReferrals || 0}</p>
             </div>
-            <div className="p-3 bg-black/40 rounded-xl border border-white/5">
-              <p className="text-xs text-muted-foreground mb-1">Gains</p>
-              <p className="text-lg font-bold text-primary">{formatMoney(affiliate?.totalEarnings || 0)}</p>
+            <div className="p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+              <p className="text-[10px] text-white/25 mb-0.5">Gains</p>
+              <p className="text-base font-bold text-primary">{formatMoney(affiliate?.totalEarnings || 0)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 p-3 bg-black/40 rounded-xl border border-white/5 text-xs font-mono text-white/50 truncate">
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 p-2.5 bg-white/[0.02] rounded-lg border border-white/[0.04] text-[10px] font-mono text-white/30 truncate">
               https://t.me/bankdata667_bot?start={affiliate?.code || 'XXX'}
             </div>
-            <button onClick={handleCopyLink} className="p-3 bg-primary/20 text-primary rounded-xl hover:bg-primary/30">
-              <Copy className="w-4 h-4" />
+            <button onClick={handleCopyLink} className="p-2.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 border border-primary/15 transition-colors">
+              <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {isAdmin && (
-            <Link href="/admin" className="w-full p-4 glass-card rounded-2xl flex items-center gap-3 text-emerald-400 font-bold hover:bg-emerald-500/10 transition-colors border-emerald-500/20">
-              <ShieldAlert className="w-5 h-5" /> Accéder au Panel Admin
+            <Link href="/admin" className="w-full p-3.5 glass-card rounded-xl flex items-center gap-2.5 text-emerald-400 font-bold text-sm hover:bg-emerald-500/[0.06] transition-colors border-emerald-500/15">
+              <ShieldAlert className="w-4 h-4" /> Panel Admin
             </Link>
           )}
-          {/* Debug page removed */}
-          <button onClick={logout} className="w-full p-4 glass-card rounded-2xl flex items-center gap-3 text-rose-400 font-bold hover:bg-rose-500/10 transition-colors border-rose-500/20">
-            <LogOut className="w-5 h-5" /> Déconnexion
+          <button onClick={logout} className="w-full p-3.5 glass-card rounded-xl flex items-center gap-2.5 text-rose-400 font-bold text-sm hover:bg-rose-500/[0.06] transition-colors border-rose-500/15">
+            <LogOut className="w-4 h-4" /> Déconnexion
           </button>
         </div>
       </div>
 
-      {/* ── DEPOSIT MODAL ── */}
       {showDeposit && (
-        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
-          <div className="w-full max-w-lg bg-[#0f0f0f] border border-white/10 rounded-t-3xl p-6 pb-10 space-y-5 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 40px)' }}>
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
+          <div className="w-full max-w-lg bg-[hsl(240,10%,5%)] border border-white/[0.08] rounded-t-2xl p-5 pb-8 space-y-4 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 32px)' }}>
 
-            {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black text-white flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-primary" /> Recharger mon solde
+              <h2 className="text-base font-black text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" /> Recharger
               </h2>
-              <button onClick={closeModal} className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors">
-                <X size={18} />
+              <button onClick={closeModal} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.06] transition-colors">
+                <X size={16} />
               </button>
             </div>
 
-            {/* STEP: Form */}
             {depositState.step === 'form' && (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-bold text-muted-foreground block mb-3">Montant (€)</label>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
+                  <label className="text-xs font-bold text-white/30 block mb-2.5">Montant (€)</label>
+                  <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                     {PRESET_AMOUNTS.map(v => (
                       <button
                         key={v}
                         onClick={() => setAmount(v)}
-                        className={`py-2.5 rounded-xl font-bold text-sm transition-colors border ${amount === v ? 'bg-primary/20 border-primary text-primary' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'}`}
+                        className={`py-2 rounded-xl font-bold text-sm transition-colors border ${amount === v ? 'bg-primary/15 border-primary/30 text-primary' : 'bg-white/[0.03] border-white/[0.06] text-white/40 hover:bg-white/[0.06]'}`}
                       >
                         {v} €
                       </button>
@@ -233,80 +225,76 @@ export function Profile() {
                     step="0.01"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
-                    className="input-field w-full text-lg font-bold"
+                    className="input-field w-full text-base font-bold"
                     placeholder="Autre montant..."
                   />
                 </div>
                 <button
                   onClick={handleCreateDeposit}
-                  className="w-full py-4 bg-primary text-black font-black rounded-2xl hover:bg-primary/90 transition-colors"
+                  className="w-full btn-primary py-3.5 text-sm"
                 >
-                  Générer l'adresse de paiement →
+                  Générer l'adresse de paiement
                 </button>
               </div>
             )}
 
-            {/* STEP: Loading */}
             {depositState.step === 'loading' && (
-              <div className="flex flex-col items-center py-10 gap-4">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-white/60 font-medium">Création du paiement...</p>
+              <div className="flex flex-col items-center py-8 gap-3">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                <p className="text-white/40 text-sm font-medium">Création du paiement...</p>
               </div>
             )}
 
-            {/* STEP: Paying / Polling */}
             {(depositState.step === 'paying' || depositState.step === 'polling') && deposit && (
-              <div className="space-y-5">
-                <div className="flex flex-col items-center py-4 gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center">
-                    <ExternalLink className="w-8 h-8 text-primary" />
+              <div className="space-y-4">
+                <div className="flex flex-col items-center py-3 gap-2.5">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/[0.08] border border-primary/20 flex items-center justify-center">
+                    <ExternalLink className="w-7 h-7 text-primary" />
                   </div>
                   <div className="text-center">
-                    <p className="font-black text-white text-lg">Page de paiement ouverte</p>
-                    <p className="text-muted-foreground text-sm mt-1">Complétez votre paiement sur OxaPay</p>
+                    <p className="font-black text-white text-base">Page de paiement ouverte</p>
+                    <p className="text-white/30 text-xs mt-0.5">Complétez votre paiement sur OxaPay</p>
                   </div>
                 </div>
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2">
+                <div className="p-3 bg-primary/[0.04] border border-primary/15 rounded-xl">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Montant</span>
+                    <span className="text-white/30">Montant</span>
                     <span className="font-bold text-primary">{parseFloat(deposit.amount).toFixed(2)} €</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-xs font-medium">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
-                  En attente de confirmation — vous recevrez un message Telegram dès que le paiement est reçu
+                <div className="flex items-center gap-2 p-2.5 bg-yellow-500/[0.06] border border-yellow-500/15 rounded-xl text-yellow-400/70 text-[11px] font-medium">
+                  <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                  En attente — notification Telegram dès réception
                 </div>
                 {deposit.payLink && (
                   <button
                     onClick={() => openPayLink(deposit.payLink)}
-                    className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl border border-white/10 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 bg-white/[0.04] hover:bg-white/[0.08] text-white font-bold text-sm rounded-xl border border-white/[0.06] transition-colors flex items-center justify-center gap-2"
                   >
-                    <ExternalLink className="w-4 h-4" /> Rouvrir la page OxaPay
+                    <ExternalLink className="w-3.5 h-3.5" /> Rouvrir OxaPay
                   </button>
                 )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Vérification automatique toutes les 5 secondes...
+                <div className="flex items-center gap-1.5 text-[10px] text-white/20 justify-center">
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  Vérification automatique...
                 </div>
               </div>
             )}
 
-            {/* STEP: Confirmed */}
             {depositState.step === 'confirmed' && (
-              <div className="flex flex-col items-center py-8 gap-5">
-                <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+              <div className="flex flex-col items-center py-6 gap-4">
+                <div className="w-16 h-16 bg-emerald-500/15 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400" />
                 </div>
                 <div className="text-center">
-                  <h3 className="text-2xl font-black text-white mb-1">Dépôt confirmé !</h3>
-                  <p className="text-muted-foreground text-sm">
-                    <span className="text-emerald-400 font-bold">{parseFloat(deposit?.amount || '0').toFixed(2)} €</span> ont été ajoutés à votre solde.
+                  <h3 className="text-xl font-black text-white mb-0.5">Dépôt confirmé !</h3>
+                  <p className="text-white/40 text-sm">
+                    <span className="text-emerald-400 font-bold">{parseFloat(deposit?.amount || '0').toFixed(2)} €</span> ajoutés à votre solde.
                   </p>
-                  <p className="text-muted-foreground text-xs mt-2">Un message Telegram de confirmation vous a été envoyé.</p>
                 </div>
                 <button
                   onClick={closeModal}
-                  className="w-full py-4 bg-primary text-black font-black rounded-2xl hover:bg-primary/90 transition-colors"
+                  className="w-full btn-primary py-3.5 text-sm"
                 >
                   Fermer
                 </button>

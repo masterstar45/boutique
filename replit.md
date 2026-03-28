@@ -66,9 +66,15 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 
 React + Vite frontend with Telegram Mini App integration.
 
-- Admin panel: 9 pages in `src/pages/admin/` (Dashboard, Products, Orders, Users, Promo, Admins, Affiliation, BotButtons, RubriqueCountries)
-- Admin layout: `src/components/layout/AdminLayout.tsx` — sidebar with collapsible navigation organized into sections (Principal, Clients, Configuration)
-- Design system: dark theme, `bg-white/[0.02]` cards with `border-white/[0.05]`, consistent table headers (`text-[10px] text-white/25`), primary color gold/yellow
+- **Storefront (mini-app)**: 8 pages in `src/pages/mini-app/` (Home, BoutiqueType, ProductDetail, Cart, Orders, Profile, Contact, Splash)
+  - Layout: `src/components/layout/MiniAppLayout.tsx` — bottom nav bar with 5 items (Accueil, Panier, Commandes, Contact, Profil)
+  - ProductCard: `src/components/ProductCard.tsx` — product grid cards with badges, stock bar, add-to-cart
+  - Flow: Splash → Auth gate → Home → Category → Country → Products → Product detail → Cart → Balance payment
+  - Design system: ultra-dark bg `hsl(240,10%,4%)`, glass cards `bg-white/[0.03] border-white/[0.06]`, gold/yellow primary, shimmer hover effects, Framer Motion animations, `font-display: Outfit`, `font-sans: DM Sans`
+  - CSS utilities in `src/index.css`: `.glass-card`, `.glass-card-hover`, `.glass-panel`, `.text-gradient-gold`, `.shimmer-gold`, `.btn-primary`, `.btn-secondary`, `.input-field`
+- **Admin panel**: 9 pages in `src/pages/admin/` (Dashboard, Products, Orders, Users, Promo, Admins, Affiliation, BotButtons, RubriqueCountries)
+  - Layout: `src/components/layout/AdminLayout.tsx` — sidebar with collapsible navigation organized into sections (Principal, Clients, Configuration)
+  - Design system: dark theme, `bg-white/[0.02]` cards with `border-white/[0.05]`, consistent table headers, primary color gold/yellow
 - Auth: Telegram WebApp authentication via JWT tokens
 
 ### `lib/db` (`@workspace/db`)

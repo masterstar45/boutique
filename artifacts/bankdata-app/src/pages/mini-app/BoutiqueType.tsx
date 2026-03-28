@@ -7,33 +7,36 @@ import { Link } from 'wouter';
 import { useListProducts } from '@workspace/api-client-react';
 import { COUNTRIES } from '@/lib/countries';
 
-const PRODUCT_TYPES: Record<string, { label: string; emoji: string; color: string; border: string; accent: string; badge: string; description: string }> = {
+const PRODUCT_TYPES: Record<string, { label: string; emoji: string; color: string; border: string; accent: string; badge: string; description: string; iconBg: string }> = {
   numlist: {
     label: 'NUMLIST',
     emoji: '📱',
-    color: 'from-blue-500/20 to-blue-900/10',
-    border: 'border-blue-500/30',
+    color: 'from-blue-500/20 to-blue-900/5',
+    border: 'border-blue-500/20',
     accent: 'text-blue-400',
-    badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    description: 'Listes de numéros de téléphone vérifiés',
+    badge: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+    iconBg: 'bg-blue-500/15 border-blue-500/25',
+    description: 'Listes de numéros vérifiés',
   },
   maillist: {
     label: 'MAILLIST',
     emoji: '📧',
-    color: 'from-emerald-500/20 to-emerald-900/10',
-    border: 'border-emerald-500/30',
+    color: 'from-emerald-500/20 to-emerald-900/5',
+    border: 'border-emerald-500/20',
     accent: 'text-emerald-400',
-    badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    description: "Bases d'emails opt-in vérifiés",
+    badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    iconBg: 'bg-emerald-500/15 border-emerald-500/25',
+    description: "Bases d'emails opt-in",
   },
   'fiche-client': {
     label: 'FICHE CLIENT',
     emoji: '👤',
-    color: 'from-amber-500/20 to-amber-900/10',
-    border: 'border-amber-500/30',
+    color: 'from-amber-500/20 to-amber-900/5',
+    border: 'border-amber-500/20',
     accent: 'text-amber-400',
-    badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    description: 'Fiches clients complètes avec coordonnées',
+    badge: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+    iconBg: 'bg-amber-500/15 border-amber-500/25',
+    description: 'Fiches clients complètes',
   },
 };
 
@@ -94,131 +97,129 @@ export function BoutiqueType({ params }: { params: { type: string } }) {
 
   return (
     <MiniAppLayout>
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center gap-4">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/[0.04] px-5 py-3 flex items-center gap-3">
         {selectedCountry ? (
           <button
             onClick={() => setSelectedCountry(null)}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"
+            className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center hover:bg-white/[0.08] transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
         ) : (
           <Link href="/">
-            <button className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
+            <button className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center hover:bg-white/[0.08] transition-colors">
+              <ArrowLeft className="w-4 h-4" />
             </button>
           </Link>
         )}
-        <div>
-          <div className={`text-xs font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 mb-1 ${typeInfo.badge}`}>
+        <div className="flex-1 min-w-0">
+          <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 mb-0.5 ${typeInfo.badge}`}>
             <span>{typeInfo.emoji}</span> {typeInfo.label}
           </div>
-          <h1 className="text-base font-black text-white leading-none">
+          <h1 className="text-sm font-black text-white leading-none truncate">
             {selectedCountry ? `${selectedCountry.flag} ${selectedCountry.name}` : typeInfo.description}
           </h1>
         </div>
       </header>
 
       <AnimatePresence mode="wait">
-        {/* ── STEP 1: Country picker ── */}
         {!selectedCountry && (
           <motion.main
             key="countries"
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -15 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="p-6 space-y-5"
+            exit={{ opacity: 0, x: -15 }}
+            className="p-5 space-y-4"
           >
-            {/* Type banner */}
-            <div className={`p-5 rounded-2xl bg-gradient-to-br ${typeInfo.color} border ${typeInfo.border}`}>
-              <div className="text-5xl mb-3">{typeInfo.emoji}</div>
-              <h2 className={`text-2xl font-black ${typeInfo.accent}`}>{typeInfo.label}</h2>
-              <p className="text-sm text-white/50 mt-1">Choisissez un pays pour voir les produits disponibles</p>
+            <div className={`p-4 rounded-2xl bg-gradient-to-br ${typeInfo.color} border ${typeInfo.border} relative overflow-hidden`}>
+              <div className="absolute inset-0 shimmer-gold opacity-30" />
+              <div className="relative flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl ${typeInfo.iconBg} border flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-3xl">{typeInfo.emoji}</span>
+                </div>
+                <div>
+                  <h2 className={`text-xl font-black ${typeInfo.accent}`}>{typeInfo.label}</h2>
+                  <p className="text-xs text-white/35 mt-0.5">Sélectionnez un pays</p>
+                </div>
+              </div>
             </div>
 
-            {/* Search */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/35" />
               <input
                 type="text"
                 placeholder="Rechercher un pays..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-white/30 transition-colors"
+                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-white/15 transition-colors"
               />
             </div>
 
-            {/* Countries grid */}
             <div>
-              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-3">
+              <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-2.5">
                 {filteredCountries.length} pays
               </p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {filteredCountries.map((country, i) => (
                   <motion.button
                     key={country.value}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.025 }}
+                    transition={{ delay: Math.min(i * 0.02, 0.5) }}
                     onClick={() => setSelectedCountry(country)}
-                    className="glass-card px-4 py-3 rounded-xl flex items-center gap-4 text-left group hover:border-white/20 hover:bg-white/10 active:scale-[0.98] transition-all w-full"
+                    className="glass-card-hover px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-left group active:scale-[0.99] w-full"
                   >
-                    <span className="text-2xl flex-shrink-0">{country.flag}</span>
-                    <div className="flex-1">
-                      <p className="font-bold text-white text-sm">{country.name}</p>
-                    </div>
-                    <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${typeInfo.badge} flex-shrink-0`}>{typeInfo.label}</div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-white flex-shrink-0" />
+                    <span className="text-xl flex-shrink-0">{country.flag}</span>
+                    <p className="font-semibold text-white/80 text-sm flex-1">{country.name}</p>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/15 group-hover:text-white/40 flex-shrink-0 transition-colors" />
                   </motion.button>
                 ))}
               </div>
 
               {filteredCountries.length === 0 && (
-                <div className="py-12 text-center text-muted-foreground">
-                  <p className="text-4xl mb-3">🌍</p>
-                  <p>Aucun pays trouvé</p>
+                <div className="py-12 text-center text-white/30">
+                  <p className="text-3xl mb-2">🌍</p>
+                  <p className="text-sm">Aucun pays trouvé</p>
                 </div>
               )}
             </div>
           </motion.main>
         )}
 
-        {/* ── STEP 2: Products ── */}
         {selectedCountry && (
           <motion.main
             key="products"
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 15 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="p-6"
+            exit={{ opacity: 0, x: 15 }}
+            className="p-5"
           >
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-xs text-white/30 mb-4">
               {isLoading ? '...' : `${filteredProducts.length} produit${filteredProducts.length !== 1 ? 's' : ''} disponible${filteredProducts.length !== 1 ? 's' : ''}`}
             </p>
 
             {isLoading ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="h-64 bg-white/5 animate-pulse rounded-2xl border border-white/5" />
+                  <div key={i} className="h-56 bg-white/[0.03] animate-pulse rounded-2xl border border-white/[0.04]" />
                 ))}
               </div>
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {filteredProducts.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
               <div className="py-16 text-center flex flex-col items-center">
-                <div className="text-6xl mb-4">{typeInfo.emoji}</div>
-                <h3 className="text-lg font-bold text-white mb-2">Aucun produit disponible</h3>
-                <p className="text-muted-foreground text-sm max-w-xs mb-6">
-                  Aucun produit {typeInfo.label} disponible pour {selectedCountry.name} pour l'instant.
+                <div className="text-5xl mb-3 opacity-60">{typeInfo.emoji}</div>
+                <h3 className="text-base font-bold text-white mb-1">Aucun produit</h3>
+                <p className="text-white/30 text-xs max-w-[200px] mb-5">
+                  Pas de {typeInfo.label} pour {selectedCountry.name} actuellement.
                 </p>
                 <button
                   onClick={() => setSelectedCountry(null)}
-                  className="px-6 py-3 rounded-xl bg-white/10 border border-white/20 text-sm font-bold hover:bg-white/20 transition-colors"
+                  className="btn-secondary text-xs px-4 py-2"
                 >
                   ← Changer de pays
                 </button>
