@@ -7,6 +7,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { initBot, setMiniAppBaseUrl } from "./lib/telegram-bot";
 import { getPublicApiBaseUrl, getPublicMiniAppUrl } from "./lib/public-url";
+import { adminLock } from "./middlewares/adminLock";
 
 const app: Express = express();
 
@@ -30,10 +31,12 @@ app.use(
   }),
 );
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -44,6 +47,9 @@ const miniAppUrl = publicMiniAppUrl ? `${publicMiniAppUrl}/` : undefined;
 
 initBot(webhookUrl);
 if (miniAppUrl) setMiniAppBaseUrl(miniAppUrl);
+
+// Emergency admin lock - must be mounted BEFORE the routes so it can block /api/admin
+app.use(adminLock);
 
 app.use("/api", router);
 
