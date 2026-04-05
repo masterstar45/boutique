@@ -12,16 +12,7 @@ export function BotVerification({ onVerified, onError }: BotVerificationProps) {
   const [error, setError] = useState<string | null>(null);
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY;
 
-  // Detect if running on desktop (non-mobile) — Turnstile doesn't work well there
-  const isDesktop = typeof window !== 'undefined' && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
   useEffect(() => {
-    // Auto-verify on desktop — real security is Telegram signature on backend
-    if (isDesktop) {
-      onVerified('desktop-bypass');
-      return;
-    }
-
     if (!turnstileSiteKey) {
       setError('Cloudflare Turnstile n\'est pas configuré');
       onError?.('Cloudflare Turnstile n\'est pas configuré');
@@ -30,7 +21,7 @@ export function BotVerification({ onVerified, onError }: BotVerificationProps) {
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [isDesktop, turnstileSiteKey, onVerified, onError]);
+  }, [turnstileSiteKey, onVerified, onError]);
 
   const handleSuccess = (token: string) => {
     onVerified(token);
@@ -46,11 +37,6 @@ export function BotVerification({ onVerified, onError }: BotVerificationProps) {
   const handleExpire = () => {
     setError('La vérification a expiré. Veuillez réessayer.');
   };
-
-  // Desktop : ne rien afficher, onVerified déjà appelé
-  if (isDesktop) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
