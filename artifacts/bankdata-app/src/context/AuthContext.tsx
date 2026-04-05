@@ -150,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (telegramContext) {
         const { initData, tgUser } = telegramContext;
+        const turnstileToken = sessionStorage.getItem('bankdata_turnstile_token') || '';
 
         // Keep existing session if present (helps admin panel paths while Telegram auth refreshes)
         const storedUserRaw = localStorage.getItem('bankdata_user');
@@ -172,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const response = await telegramAuth.mutateAsync({
             data: {
               initData,
+              turnstileToken,
               user: {
                 id: tgUser.id,
                 first_name: tgUser.first_name,
@@ -179,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 last_name: tgUser.last_name,
                 photo_url: tgUser.photo_url
               }
-            }
+            } as any
           });
           const newToken = response.token;
           const newUser = response.user;

@@ -282,7 +282,8 @@ function VerificationGate({ children }: { children: React.ReactNode }) {
   if (!isVerified) {
     return (
       <BotVerification
-        onVerified={() => {
+        onVerified={(token) => {
+          sessionStorage.setItem("bankdata_turnstile_token", token);
           sessionStorage.setItem("bankdata_turnstile_verified", "1");
           setIsVerified(true);
         }}
@@ -300,16 +301,16 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <CartProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <VerificationGate>
+        <VerificationGate>
+          <AuthProvider>
+            <CartProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
                 <MainApp />
-              </VerificationGate>
-            </WouterRouter>
-            <Toaster />
-          </CartProvider>
-        </AuthProvider>
+              </WouterRouter>
+              <Toaster />
+            </CartProvider>
+          </AuthProvider>
+        </VerificationGate>
       </TooltipProvider>
     </QueryClientProvider>
   );

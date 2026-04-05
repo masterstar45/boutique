@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
 import { v4 as uuidv4 } from "uuid";
+import { verifyTurnstileToken } from "../lib/turnstile";
 
 const router: IRouter = Router();
 
@@ -48,7 +49,7 @@ function validateTelegramInitData(initData: string): boolean {
 }
 
 router.post("/auth/telegram", async (req, res): Promise<void> => {
-  const { initData, user } = req.body;
+  const { initData, user, turnstileToken } = req.body;
 
   if (!user || !user.id) {
     res.status(400).json({ error: "Données utilisateur manquantes" });
@@ -57,6 +58,17 @@ router.post("/auth/telegram", async (req, res): Promise<void> => {
 
   if (!validateTelegramInitData(initData)) {
     res.status(401).json({ error: "Signature Telegram invalide" });
+    return;
+  }
+
+  const forwardedFor = req.headers["x-forwarded-for"];
+  const remoteIp = Array.isArray(forwardedFor)
+    ? forwardedFor[0]
+    : (typeof forwardedFor === "string" ? forwardedFor.split(",")[0]?.trim() : req.ip);
+
+  const turnstileOk = await verifyTurnstileToken(String(turnstileToken ?? ""), remoteIp);
+  if (!turnstileOk) {
+    res.status(401).json({ error: "Vérification Cloudflare Turnstile échouée" });
     return;
   }
 
