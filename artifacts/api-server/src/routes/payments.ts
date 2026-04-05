@@ -611,50 +611,83 @@ router.post("/payments/pay-with-balance", requireAuth, async (req, res): Promise
     return;
   }
 
-  const order = await db.select().from(ordersTable)
-    .where(and(eq(ordersTable.id, orderId), eq(ordersTable.userId, req.user!.userId)))
-    .then(r => r[0]);
+  const client = await pool.connect();
+  let createdPaymentId: number | null = null;
 
-  if (!order) {
-    res.status(404).json({ error: "Commande introuvable" });
+  try {
+    await client.query("BEGIN");
+    const txDb = drizzle(client);
+
+    const orderResult = await txDb.execute(
+      sql`SELECT id, user_id, status, amount FROM orders WHERE id = ${orderId} FOR UPDATE`
+    ) as any;
+    const order = orderResult?.rows?.[0] ?? orderResult?.[0];
+
+    if (!order || Number(order.user_id) !== req.user!.userId) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+
+    if (String(order.status) !== "pending") {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Commande déjà traitée" });
+      return;
+    }
+
+    const userResult = await txDb.execute(
+      sql`SELECT id, balance FROM users WHERE id = ${req.user!.userId} FOR UPDATE`
+    ) as any;
+    const user = userResult?.rows?.[0] ?? userResult?.[0];
+
+    if (!user) {
+      await client.query("ROLLBACK");
+      res.status(404).json({ error: "Utilisateur introuvable" });
+      return;
+    }
+
+    const balance = parseFloat(String(user.balance ?? "0"));
+    const amount = parseFloat(String(order.amount ?? "0"));
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      await client.query("ROLLBACK");
+      res.status(400).json({ error: "Montant de commande invalide" });
+      return;
+    }
+
+    if (balance < amount) {
+      await client.query("ROLLBACK");
+      res.status(402).json({ error: "Solde insuffisant", balance: String(user.balance), required: String(order.amount) });
+      return;
+    }
+
+    await txDb.update(usersTable)
+      .set({ balance: sql`${usersTable.balance} - ${amount}` })
+      .where(eq(usersTable.id, req.user!.userId));
+
+    const [payment] = await txDb.insert(paymentsTable).values({
+      orderId,
+      amount: String(order.amount),
+      currency: "EUR",
+      status: "confirmed",
+      confirmedAt: new Date(),
+    }).returning();
+
+    createdPaymentId = payment.id;
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ err, orderId, userId: req.user?.userId }, "pay-with-balance transaction failed");
+    res.status(500).json({ error: "Erreur interne lors du paiement" });
     return;
+  } finally {
+    client.release();
   }
 
-  if (order.status !== "pending") {
-    res.status(400).json({ error: "Commande déjà traitée" });
-    return;
-  }
+  await processConfirmedPayment(orderId, createdPaymentId!);
 
-  const user = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId)).then(r => r[0]);
-
-  if (!user) {
-    res.status(404).json({ error: "Utilisateur introuvable" });
-    return;
-  }
-
-  const balance = parseFloat(user.balance ?? "0");
-  const amount = parseFloat(order.amount);
-
-  if (balance < amount) {
-    res.status(402).json({ error: "Solde insuffisant", balance: user.balance, required: order.amount });
-    return;
-  }
-
-  await db.update(usersTable)
-    .set({ balance: sql`${usersTable.balance} - ${amount}` })
-    .where(eq(usersTable.id, req.user!.userId));
-
-  const [payment] = await db.insert(paymentsTable).values({
-    orderId,
-    amount: order.amount,
-    currency: "EUR",
-    status: "confirmed",
-    confirmedAt: new Date(),
-  }).returning();
-
-  await processConfirmedPayment(orderId, payment.id);
-
-  res.json({ success: true, paymentId: payment.id });
+  res.json({ success: true, paymentId: createdPaymentId });
 });
 
 export { processConfirmedPayment };

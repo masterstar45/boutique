@@ -136,8 +136,10 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
 
 router.post("/payment-webhook", async (req, res): Promise<void> => {
   const body = req.body;
-
-  logger.info({ body }, "Payment webhook received");
+  logger.info({
+    status: normalizeStatus(body?.status),
+    trackId: pickString(body, ["trackId", "track_id", "trackID"]),
+  }, "Payment webhook received");
 
   // Verify OxaPay webhook signature.
   // In production mode (API key configured), signature is mandatory.
