@@ -3,11 +3,12 @@ import { db, downloadsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Readable } from "stream";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const storageService = new ObjectStorageService();
 
-router.get("/downloads/:token", async (req, res): Promise<void> => {
+router.get("/downloads/:token", requireAuth, async (req, res): Promise<void> => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
 
   const download = await db.select().from(downloadsTable)
@@ -16,6 +17,11 @@ router.get("/downloads/:token", async (req, res): Promise<void> => {
 
   if (!download) {
     res.status(404).json({ error: "Lien de téléchargement invalide" });
+    return;
+  }
+
+  if (download.userId !== req.user!.userId) {
+    res.status(403).json({ error: "Accès refusé" });
     return;
   }
 

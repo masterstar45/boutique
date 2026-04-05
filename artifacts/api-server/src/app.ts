@@ -32,6 +32,11 @@ app.use(
 
 const rawAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS ?? "";
 const allowedOrigins = rawAllowedOrigins.split(",").map(o => o.trim()).filter(Boolean);
+
+if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+  throw new Error("CORS_ALLOWED_ORIGINS must be set in production");
+}
+
 app.use(cors({
   origin: allowedOrigins.length > 0
     ? (origin, callback) => {

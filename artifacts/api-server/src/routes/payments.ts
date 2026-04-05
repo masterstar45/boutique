@@ -17,7 +17,7 @@ const storageService = new ObjectStorageService();
 const router: IRouter = Router();
 
 function generateDownloadToken(): string {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(64).toString("hex");
 }
 
 function normalizeObjectPath(inputPath: string): string {
