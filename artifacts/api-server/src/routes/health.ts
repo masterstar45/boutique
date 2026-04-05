@@ -11,6 +11,16 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
+router.get("/health/turnstile-config", (_req, res) => {
+  const siteKey =
+    process.env.CLOUDFLARE_TURNSTILE_SITE_KEY?.trim() ||
+    process.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY?.trim() ||
+    "";
+
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ siteKey });
+});
+
 /**
  * GET /api/health/debug
  * Show user info, Telegram ID, and admin status - useful for debugging

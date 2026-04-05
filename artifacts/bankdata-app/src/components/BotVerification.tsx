@@ -10,7 +10,9 @@ interface BotVerificationProps {
 
 export function BotVerification({ onVerified, onError }: BotVerificationProps) {
   const [error, setError] = useState<string | null>(null);
-  const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY;
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>(
+    String(import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ?? "").trim(),
+  );
   const hasVerifiedRef = useRef(false);
 
   const safeVerify = useCallback((token: string) => {
@@ -20,12 +22,47 @@ export function BotVerification({ onVerified, onError }: BotVerificationProps) {
   }, [onVerified]);
 
   useEffect(() => {
-    if (!turnstileSiteKey) {
-      setError('Cloudflare Turnstile n\'est pas configuré');
-      onError?.('Cloudflare Turnstile n\'est pas configuré');
+    if (turnstileSiteKey) return undefined;
+
+    let cancelled = false;
+
+    const loadRuntimeTurnstileKey = async () => {
+      try {
+        const response = await fetch('/api/health/turnstile-config');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json() as { siteKey?: string };
+        const runtimeKey = String(data?.siteKey ?? '').trim();
+
+        if (cancelled) return;
+
+        if (runtimeKey) {
+          setTurnstileSiteKey(runtimeKey);
+          setError(null);
+          return;
+        }
+      } catch {
+      }
+
+      if (!cancelled) {
+        setError('Cloudflare Turnstile n\'est pas configuré');
+        onError?.('Cloudflare Turnstile n\'est pas configuré');
+      }
+    };
+
+    loadRuntimeTurnstileKey();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [turnstileSiteKey, onError]);
+
+  useEffect(() => {
+    if (turnstileSiteKey) {
+      setError(null);
     }
     return undefined;
-  }, [turnstileSiteKey, onError, safeVerify]);
+  }, [turnstileSiteKey]);
 
   const handleSuccess = (token: string) => {
     if (!token) {
