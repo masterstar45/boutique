@@ -23,6 +23,6 @@ RUN pnpm --filter bankdata-app build
 
 RUN pnpm --filter @workspace/api-server build
 
-RUN cp -r artifacts/bankdata-app/dist/public artifacts/api-server/dist/public
+RUN cp -r artifacts/bankdata-app/dist artifacts/api-server/dist/public
 
 CMD ["pnpm", "--filter", "@workspace/api-server", "start"]
