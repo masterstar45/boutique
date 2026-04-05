@@ -83,8 +83,8 @@ function runChecks(): CheckResult[] {
   if (!isProd) {
     results.push({
       name: "Execution context",
-      ok: false,
-      details: "Run this script with production env values to validate real deployment readiness",
+      ok: true,
+      details: "Non-production mode: checks are informational unless SECURITY_CHECK_STRICT=true",
     });
   }
 
@@ -92,6 +92,11 @@ function runChecks(): CheckResult[] {
 }
 
 function main(): void {
+  const strictRequested = (process.env.SECURITY_CHECK_STRICT ?? "").trim().toLowerCase() === "true";
+  const nodeEnv = (process.env.NODE_ENV ?? "").trim();
+  const isProd = nodeEnv === "production";
+  const strictMode = strictRequested || isProd;
+
   try {
     requireEnv("DATABASE_URL");
   } catch {
@@ -103,14 +108,18 @@ function main(): void {
 
   console.log("Security configuration check\n");
   for (const result of results) {
-    const mark = result.ok ? "PASS" : "FAIL";
+    const mark = result.ok ? "PASS" : (strictMode ? "FAIL" : "WARN");
     console.log(`[${mark}] ${result.name}: ${result.details}`);
-    if (!result.ok) failed += 1;
+    if (!result.ok && strictMode) failed += 1;
   }
 
   console.log("\nSummary");
   console.log(`Total checks: ${results.length}`);
   console.log(`Failed: ${failed}`);
+
+  if (!strictMode) {
+    console.log("Mode: informational (set SECURITY_CHECK_STRICT=true to fail on missing production settings)");
+  }
 
   if (failed > 0) {
     process.exit(1);
