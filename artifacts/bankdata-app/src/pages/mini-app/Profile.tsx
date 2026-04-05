@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useGetAffiliateStats } from '@workspace/api-client-react';
 import { MiniAppLayout } from '@/components/layout/MiniAppLayout';
 import { formatMoney } from '@/lib/utils';
-import { UserCircle, LogOut, Wallet, ShieldAlert, Copy, X, Loader2, CheckCircle2, Clock, ChevronRight, ExternalLink } from 'lucide-react';
+import { UserCircle, Wallet, ShieldAlert, Copy, X, Loader2, CheckCircle2, Clock, ChevronRight, ExternalLink } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,7 +17,7 @@ type DepositState =
   | { step: 'confirmed'; deposit: any };
 
 export function Profile() {
-  const { user, logout, isAdmin, refreshUser } = useAuth();
+  const { user, isAdmin, refreshUser } = useAuth();
   const { data: affiliate } = useGetAffiliateStats();
   const { toast } = useToast();
 
@@ -185,9 +185,6 @@ export function Profile() {
               <ShieldAlert className="w-4 h-4" /> Panel Admin
             </Link>
           )}
-          <button onClick={logout} className="w-full p-3.5 glass-card rounded-xl flex items-center gap-2.5 text-rose-400 font-bold text-sm hover:bg-rose-500/[0.06] transition-colors border-rose-500/15">
-            <LogOut className="w-4 h-4" /> Déconnexion
-          </button>
         </div>
       </div>
 
