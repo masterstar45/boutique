@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Home, ShoppingCart, Clock, User, MessageCircle } from 'lucide-react';
+import { Home, ShoppingCart, User, MessageCircle } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { icon: Home, label: 'Accueil', href: '/' },
   { icon: ShoppingCart, label: 'Panier', href: '/panier', badge: true },
-  { icon: Clock, label: 'Commandes', href: '/commandes' },
   { icon: MessageCircle, label: 'Contact', href: '/contact' },
   { icon: User, label: 'Profil', href: '/profil' },
 ];

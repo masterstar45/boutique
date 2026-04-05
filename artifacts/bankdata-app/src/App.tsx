@@ -15,7 +15,6 @@ import { BoutiqueType } from "@/pages/mini-app/BoutiqueType";
 import { ProductDetail } from "@/pages/mini-app/ProductDetail";
 import { Cart } from "@/pages/mini-app/Cart";
 import { Payment } from "@/pages/mini-app/Payment";
-import { Orders } from "@/pages/mini-app/Orders";
 import { Profile } from "@/pages/mini-app/Profile";
 import { Contact } from "@/pages/mini-app/Contact";
 
@@ -235,7 +234,6 @@ function MainApp() {
       <Route path="/produit/:id" component={ProductDetail} />
       <Route path="/panier" component={Cart} />
       <Route path="/paiement/:id" component={Payment} />
-      <Route path="/commandes" component={Orders} />
       <Route path="/profil" component={Profile} />
       <Route path="/contact" component={Contact} />
 

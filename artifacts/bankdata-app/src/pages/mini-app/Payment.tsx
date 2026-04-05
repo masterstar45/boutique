@@ -71,8 +71,8 @@ export function Payment() {
         <h1 className="text-3xl font-display font-black text-white mb-2">Paiement Validé !</h1>
         <p className="text-muted-foreground mb-8">Votre commande a été traitée avec succès.</p>
         <div className="w-full max-w-sm space-y-4">
-          <Link href="/commandes" className="btn-primary w-full flex items-center justify-center gap-2">
-            <Download className="w-5 h-5" /> Accéder aux fichiers
+          <Link href="/" className="btn-primary w-full flex items-center justify-center gap-2">
+            <Download className="w-5 h-5" /> Retour à la boutique
           </Link>
           <Link href="/" className="btn-secondary w-full block">Retour à l'accueil</Link>
         </div>

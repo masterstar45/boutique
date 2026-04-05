@@ -85,7 +85,7 @@ export function Cart() {
       await refreshUser();
 
       toast({ title: "Paiement réussi !", description: "Votre commande a été confirmée." });
-      setLocation('/commandes');
+      setLocation('/');
     } catch (e: any) {
       const msg = e?.data?.error || e.message || "Une erreur est survenue.";
       toast({ variant: "destructive", title: "Erreur de paiement", description: msg });
