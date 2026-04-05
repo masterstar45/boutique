@@ -10,6 +10,7 @@ COPY lib/db/package.json lib/db/package.json
 COPY lib/api-zod/package.json lib/api-zod/package.json
 COPY lib/api-client-react/package.json lib/api-client-react/package.json
 COPY lib/object-storage-web/package.json lib/object-storage-web/package.json
+COPY scripts/package.json scripts/package.json
 
 RUN pnpm install --no-frozen-lockfile
 
