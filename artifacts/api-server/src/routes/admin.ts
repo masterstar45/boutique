@@ -6,6 +6,7 @@ import { sendAdminCreditNotification } from "../lib/telegram-bot";
 import { getAllRubriqueCountries, isValidRubrique, setRubriqueCountries } from "../lib/rubriqueCountries";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { convertToFicheFormat } from "../lib/fiche-converter";
+import { logger } from "../lib/logger";
 
 const storageService = new ObjectStorageService();
 
@@ -87,6 +88,31 @@ async function maybeConvertFicheFile(fileUrl: string, categoryId: number | null)
 }
 
 const router: IRouter = Router();
+
+const BOOTSTRAP_ADMIN_IDS: Set<string> = new Set(
+  (process.env.TELEGRAM_ADMIN_CHAT_ID ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean),
+);
+
+function isBootstrapAdminTelegramId(telegramId: string): boolean {
+  return BOOTSTRAP_ADMIN_IDS.has(String(telegramId || "").trim());
+}
+
+async function getUserById(id: number) {
+  return db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, id))
+    .then((rows) => rows[0]);
+}
+
+async function canActorManageAdminRoles(actorUserId: number): Promise<boolean> {
+  const actor = await getUserById(actorUserId);
+  if (!actor) return false;
+  return isBootstrapAdminTelegramId(actor.telegramId);
+}
 
 let botButtonsTableEnsured = false;
 
@@ -454,11 +480,37 @@ router.patch("/admin/users/:id/admin", requireAdmin, async (req, res): Promise<v
     return;
   }
 
+  const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
+  if (!actorCanManageRoles) {
+    logger.warn({ actorUserId: req.user!.userId, targetUserId: id, requestedIsAdmin: isAdmin }, "Blocked admin role mutation by non-bootstrap admin");
+    res.status(403).json({ error: "Seuls les super-admins autorises peuvent modifier les roles admin." });
+    return;
+  }
+
+  const target = await getUserById(id);
+  if (!target) {
+    res.status(404).json({ error: "Utilisateur introuvable" });
+    return;
+  }
+
+  if (isAdmin && !isBootstrapAdminTelegramId(target.telegramId)) {
+    logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked admin promotion for non-whitelisted Telegram ID");
+    res.status(403).json({ error: "Promotion admin refusee: Telegram ID non autorise." });
+    return;
+  }
+
+  if (!isAdmin && isBootstrapAdminTelegramId(target.telegramId)) {
+    logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked demotion of bootstrap admin");
+    res.status(403).json({ error: "Impossible de retirer les droits d'un super-admin de base." });
+    return;
+  }
+
   const [user] = await db.update(usersTable).set({ isAdmin }).where(eq(usersTable.id, id)).returning();
   if (!user) {
     res.status(404).json({ error: "Utilisateur introuvable" });
     return;
   }
+  logger.info({ actorUserId: req.user!.userId, targetUserId: user.id, targetTelegramId: user.telegramId, isAdmin: user.isAdmin }, "Admin role updated");
   res.json({ id: user.id, isAdmin: user.isAdmin });
 });
 
@@ -514,6 +566,20 @@ router.post("/admin/admins/promote", requireAdmin, async (req, res): Promise<voi
     res.status(400).json({ error: "Telegram ID requis" });
     return;
   }
+
+  const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
+  if (!actorCanManageRoles) {
+    logger.warn({ actorUserId: req.user!.userId, targetTelegramId: String(telegramId) }, "Blocked promote request by non-bootstrap admin");
+    res.status(403).json({ error: "Seuls les super-admins autorises peuvent promouvoir un admin." });
+    return;
+  }
+
+  if (!isBootstrapAdminTelegramId(String(telegramId))) {
+    logger.warn({ actorUserId: req.user!.userId, targetTelegramId: String(telegramId) }, "Blocked promotion for non-whitelisted Telegram ID");
+    res.status(403).json({ error: "Promotion admin refusee: Telegram ID non autorise." });
+    return;
+  }
+
   const user = await db.select().from(usersTable)
     .where(eq(usersTable.telegramId, String(telegramId)))
     .then(r => r[0]);
@@ -529,6 +595,7 @@ router.post("/admin/admins/promote", requireAdmin, async (req, res): Promise<voi
     .set({ isAdmin: true })
     .where(eq(usersTable.id, user.id))
     .returning();
+  logger.info({ actorUserId: req.user!.userId, targetUserId: updated.id, targetTelegramId: updated.telegramId }, "Admin promoted");
   res.json({
     id: updated.id,
     telegramId: updated.telegramId,
@@ -546,6 +613,25 @@ router.delete("/admin/admins/:id", requireAdmin, async (req, res): Promise<void>
     return;
   }
 
+  const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
+  if (!actorCanManageRoles) {
+    logger.warn({ actorUserId: req.user!.userId, targetUserId: id }, "Blocked admin demotion by non-bootstrap admin");
+    res.status(403).json({ error: "Seuls les super-admins autorises peuvent retirer les droits admin." });
+    return;
+  }
+
+  const target = await getUserById(id);
+  if (!target) {
+    res.status(404).json({ error: "Utilisateur introuvable" });
+    return;
+  }
+
+  if (isBootstrapAdminTelegramId(target.telegramId)) {
+    logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked demotion of bootstrap admin");
+    res.status(403).json({ error: "Impossible de retirer les droits d'un super-admin de base." });
+    return;
+  }
+
   const [updated] = await db.update(usersTable)
     .set({ isAdmin: false })
     .where(eq(usersTable.id, id))
@@ -554,6 +640,7 @@ router.delete("/admin/admins/:id", requireAdmin, async (req, res): Promise<void>
     res.status(404).json({ error: "Utilisateur introuvable" });
     return;
   }
+  logger.info({ actorUserId: req.user!.userId, targetUserId: updated.id, targetTelegramId: updated.telegramId }, "Admin demoted");
   res.json({ id: updated.id, isAdmin: updated.isAdmin });
 });
 
