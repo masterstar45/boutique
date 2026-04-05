@@ -3,7 +3,7 @@ FROM node:22
 WORKDIR /app
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY artifacts/bankdata-app/package.json artifacts/bankdata-app/package.json
 COPY artifacts/api-server/package.json artifacts/api-server/package.json
 COPY lib/db/package.json lib/db/package.json
