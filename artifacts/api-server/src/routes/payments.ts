@@ -155,6 +155,16 @@ router.get("/payments/:id/status", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
+  const order = await db.select({ userId: ordersTable.userId })
+    .from(ordersTable)
+    .where(eq(ordersTable.id, payment.orderId))
+    .then(r => r[0]);
+
+  if (!order || order.userId !== req.user!.userId) {
+    res.status(403).json({ error: "Accès refusé" });
+    return;
+  }
+
   if (payment.trackId && payment.status === "pending") {
     try {
       const statusData = await getPaymentStatus(payment.trackId);
