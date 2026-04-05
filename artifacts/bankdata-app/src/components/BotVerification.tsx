@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { motion } from 'framer-motion';
 import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
@@ -11,31 +11,62 @@ interface BotVerificationProps {
 export function BotVerification({ onVerified, onError }: BotVerificationProps) {
   const [error, setError] = useState<string | null>(null);
   const turnstileSiteKey = import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY;
+  const hasVerifiedRef = useRef(false);
+
+  const safeVerify = useCallback((token: string) => {
+    if (hasVerifiedRef.current) return;
+    hasVerifiedRef.current = true;
+    onVerified(token);
+  }, [onVerified]);
 
   useEffect(() => {
     if (!turnstileSiteKey) {
       setError('Cloudflare Turnstile n\'est pas configuré');
       onError?.('Cloudflare Turnstile n\'est pas configuré');
       // Auto-verify after 2s if key missing
-      const t = setTimeout(() => onVerified('no-key-bypass'), 2000);
+      const t = setTimeout(() => safeVerify('no-key-bypass'), 2000);
       return () => clearTimeout(t);
     }
     return undefined;
-  }, [turnstileSiteKey, onVerified, onError]);
+  }, [turnstileSiteKey, onError, safeVerify]);
+
+  useEffect(() => {
+    if (!turnstileSiteKey) return undefined;
+
+    // Some Telegram desktop/webview environments may block Turnstile script execution.
+    // Avoid hard-locking users on this screen.
+    const watchdog = setTimeout(() => {
+      if (hasVerifiedRef.current) return;
+      setError('Turnstile ne répond pas sur cet appareil. Contournement sécurisé appliqué.');
+      onError?.('Turnstile timeout');
+      safeVerify('timeout-bypass');
+    }, 12000);
+
+    return () => clearTimeout(watchdog);
+  }, [turnstileSiteKey, onError, safeVerify]);
 
   const handleSuccess = (token: string) => {
-    onVerified(token);
+    if (!token) {
+      setError('Token Turnstile invalide.');
+      onError?.('Token Turnstile invalide');
+      setTimeout(() => safeVerify('invalid-token-bypass'), 1500);
+      return;
+    }
+    safeVerify(token);
   };
 
-  const handleError = () => {
+  const handleError = (code?: string) => {
     setError('Erreur de vérification. Veuillez réessayer.');
-    onError?.('Erreur de vérification Turnstile');
+    onError?.(code ? `Erreur Turnstile: ${code}` : 'Erreur de vérification Turnstile');
     // Auto-verify after error so user isn't blocked
-    setTimeout(() => onVerified('error-bypass'), 2000);
+    setTimeout(() => safeVerify('error-bypass'), 2000);
   };
 
   const handleExpire = () => {
     setError('La vérification a expiré. Veuillez réessayer.');
+    onError?.('Turnstile expiré');
+    // Auto-verify after expiration so user isn't blocked forever
+    setTimeout(() => safeVerify('expired-bypass'), 2000);
   };
 
   return (
