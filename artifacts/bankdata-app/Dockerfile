@@ -14,6 +14,7 @@ COPY lib/object-storage-web/package.json lib/object-storage-web/package.json
 RUN pnpm install --no-frozen-lockfile
 
 COPY artifacts/bankdata-app artifacts/bankdata-app
+COPY lib/api-client-react lib/api-client-react
 
 RUN pnpm --filter bankdata-app build
 
