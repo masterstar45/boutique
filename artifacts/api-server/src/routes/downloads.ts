@@ -11,6 +11,11 @@ const storageService = new ObjectStorageService();
 router.get("/downloads/:token", requireAuth, async (req, res): Promise<void> => {
   const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
 
+  if (!/^[a-f0-9]{128}$/i.test(token)) {
+    res.status(400).json({ error: "Format de token invalide" });
+    return;
+  }
+
   const download = await db.select().from(downloadsTable)
     .where(eq(downloadsTable.token, token))
     .then(r => r[0]);
@@ -52,6 +57,9 @@ router.get("/downloads/:token", requireAuth, async (req, res): Promise<void> => 
     const file = await storageService.getObjectEntityFile(servePath);
     const response = await storageService.downloadObject(file);
 
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     const dispositionName = (fileName ?? 'fichier.txt').replace(/["\r\n\\]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${dispositionName}"`);
     res.setHeader('Content-Type', response.headers.get('Content-Type') ?? 'text/plain');
