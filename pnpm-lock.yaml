@@ -156,6 +156,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@rollup/rollup-win32-x64-msvc':
+        specifier: ^4.60.1
+        version: 4.60.1
     devDependencies:
       prettier:
         specifier: ^3.8.1
@@ -236,6 +240,9 @@ importers:
 
   artifacts/bankdata-app:
     dependencies:
+      '@marsidev/react-turnstile':
+        specifier: ^1.5.0
+        version: 1.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@workspace/object-storage-web':
         specifier: workspace:*
         version: link:../../lib/object-storage-web
@@ -864,6 +871,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@marsidev/react-turnstile@1.5.0':
+    resolution: {integrity: sha512-Ph6mcj8u9WBDsBO7s9jKPsyRDz1sBPBJwrk+Ngx09vFInvKsQ6U6kW5amEcGq4dHOreB6DgFrOJk7/fy318YlQ==}
+    peerDependencies:
+      react: ^17.0.2 || ^18.0.0 || ^19.0
+      react-dom: ^17.0.2 || ^18.0.0 || ^19.0
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1591,6 +1604,11 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@rollup/rollup-win32-x64-msvc@4.60.1':
+    resolution: {integrity: sha512-lWMnixq/QzxyhTV6NjQJ4SFo1J6PvOX8vUx5Wb4bBPsEb+8xZ89Bz6kOXpfXj9ak9AHTQVQzlgzBEc1SyM27xQ==}
+    cpu: [x64]
+    os: [win32]
 
   '@scalar/helpers@0.2.18':
     resolution: {integrity: sha512-w1d4tpNEVZ293oB2BAgLrS0kVPUtG3eByNmOCJA5eK9vcT4D3cmsGtWjUaaqit0BQCsBFHK51rasGvSWnApYTw==}
@@ -4349,6 +4367,11 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@marsidev/react-turnstile@1.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -5186,6 +5209,8 @@ snapshots:
 
   '@rollup/rollup-linux-x64-gnu@4.59.0':
     optional: true
+
+  '@rollup/rollup-win32-x64-msvc@4.60.1': {}
 
   '@scalar/helpers@0.2.18': {}
 
