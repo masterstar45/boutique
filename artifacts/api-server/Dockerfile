@@ -18,7 +18,7 @@ COPY artifacts/bankdata-app artifacts/bankdata-app
 COPY lib lib
 COPY attached_assets attached_assets
 
-RUN pnpm --filter @workspace/bankdata-app build
+RUN pnpm --filter bankdata-app build
 
 RUN pnpm --filter @workspace/api-server build
 
