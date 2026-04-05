@@ -54,6 +54,10 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 ensureFileStorageTable().then(() => logDatabaseStatus()).then(() => {
+  // Security warning: OXAPAY webhook signature not enforced
+  if (process.env.OXAPAY_API_KEY && process.env.OXAPAY_STRICT_HMAC !== "true") {
+    logger.warn("OXAPAY_STRICT_HMAC is not set to 'true' — payment webhook signatures are not enforced. Set OXAPAY_STRICT_HMAC=true in production.");
+  }
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

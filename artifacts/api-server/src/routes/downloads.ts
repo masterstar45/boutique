@@ -46,7 +46,8 @@ router.get("/downloads/:token", async (req, res): Promise<void> => {
     const file = await storageService.getObjectEntityFile(servePath);
     const response = await storageService.downloadObject(file);
 
-    const dispositionName = fileName ?? 'fichier.txt';
+    const dispositionName = (fileName ?? 'fichier.txt').replace(/["
+\\]/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${dispositionName}"`);
     res.setHeader('Content-Type', response.headers.get('Content-Type') ?? 'text/plain');
     const cl = response.headers.get('Content-Length');

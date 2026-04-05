@@ -24,7 +24,10 @@ function generateAffiliateCode(telegramId: string): string {
 
 function validateTelegramInitData(initData: string): boolean {
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  if (!BOT_TOKEN || !initData) return true;
+  // No bot token configured (dev mode) — skip validation
+  if (!BOT_TOKEN) return true;
+  // Bot token is set but no initData provided — reject
+  if (!initData) return false;
 
   try {
     const params = new URLSearchParams(initData);
@@ -49,6 +52,11 @@ router.post("/auth/telegram", async (req, res): Promise<void> => {
 
   if (!user || !user.id) {
     res.status(400).json({ error: "Données utilisateur manquantes" });
+    return;
+  }
+
+  if (!validateTelegramInitData(initData)) {
+    res.status(401).json({ error: "Signature Telegram invalide" });
     return;
   }
 

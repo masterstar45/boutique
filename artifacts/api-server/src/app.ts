@@ -30,8 +30,19 @@ app.use(
   }),
 );
 
+const rawAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS ?? "";
+const allowedOrigins = rawAllowedOrigins.split(",").map(o => o.trim()).filter(Boolean);
 app.use(cors({
-  origin: true,
+  origin: allowedOrigins.length > 0
+    ? (origin, callback) => {
+        // Allow requests with no Origin (mobile apps, server-to-server)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      }
+    : true,
   credentials: true,
 }));
 app.use(express.json({ limit: "10mb" }));
