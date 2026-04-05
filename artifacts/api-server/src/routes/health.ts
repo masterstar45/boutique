@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { requireAuth } from "../middlewares/auth";
+import { requireAdmin } from "../middlewares/auth";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
@@ -25,7 +25,7 @@ router.get("/health/turnstile-config", (_req, res) => {
  * GET /api/health/debug
  * Show user info, Telegram ID, and admin status - useful for debugging
  */
-router.get("/health/debug", requireAuth, async (req, res) => {
+router.get("/health/debug", requireAdmin, async (req, res) => {
   try {
     const user = await db.select().from(usersTable)
       .where(eq(usersTable.id, req.user!.userId))
@@ -52,7 +52,7 @@ router.get("/health/debug", requireAuth, async (req, res) => {
       },
       telegram: {
         botTokenSet: process.env.TELEGRAM_BOT_TOKEN ? "✅ Yes" : "❌ No",
-        adminIds: process.env.TELEGRAM_ADMIN_CHAT_ID ? `✅ ${process.env.TELEGRAM_ADMIN_CHAT_ID}` : "❌ Not set",
+        adminIds: process.env.TELEGRAM_ADMIN_CHAT_ID ? "✅ Set" : "❌ Not set",
       },
       cors: {
         status: "✅ Enabled",

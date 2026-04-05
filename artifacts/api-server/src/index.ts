@@ -2,6 +2,22 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 
+function enforceProductionSecurityConfig(): void {
+  const isProd = process.env.NODE_ENV === "production";
+  if (!isProd) return;
+
+  const oxapayKey = process.env.OXAPAY_API_KEY?.trim();
+  const strictHmac = process.env.OXAPAY_STRICT_HMAC === "true";
+
+  if (!oxapayKey) {
+    throw new Error("OXAPAY_API_KEY must be set in production");
+  }
+
+  if (!strictHmac) {
+    throw new Error("OXAPAY_STRICT_HMAC must be 'true' in production");
+  }
+}
+
 async function ensureFileStorageTable() {
   try {
     await pool.query(`
@@ -17,6 +33,22 @@ async function ensureFileStorageTable() {
     logger.info("file_storage table ready");
   } catch (err) {
     logger.error({ err }, "Failed to create file_storage table (non-fatal)");
+  }
+}
+
+async function ensureRateLimitTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS api_rate_limits (
+        key TEXT PRIMARY KEY,
+        count INTEGER NOT NULL,
+        reset_at BIGINT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_api_rate_limits_reset_at ON api_rate_limits (reset_at);
+    `);
+    logger.info("api_rate_limits table ready");
+  } catch (err) {
+    logger.error({ err }, "Failed to create api_rate_limits table (non-fatal)");
   }
 }
 
@@ -53,11 +85,12 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-ensureFileStorageTable().then(() => logDatabaseStatus()).then(() => {
-  // Security warning: OXAPAY webhook signature not enforced
-  if (process.env.OXAPAY_API_KEY && process.env.OXAPAY_STRICT_HMAC !== "true") {
-    logger.warn("OXAPAY_STRICT_HMAC is not set to 'true' — payment webhook signatures are not enforced. Set OXAPAY_STRICT_HMAC=true in production.");
-  }
+enforceProductionSecurityConfig();
+
+ensureFileStorageTable()
+  .then(() => ensureRateLimitTable())
+  .then(() => logDatabaseStatus())
+  .then(() => {
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

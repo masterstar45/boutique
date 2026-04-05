@@ -3,6 +3,7 @@ import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodes
 import { eq, desc, sql, and, gte, asc } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
+import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
 import { getAllRubriqueCountries, isValidRubrique, setRubriqueCountries } from "../lib/rubriqueCountries";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { convertToFicheFormat } from "../lib/fiche-converter";
@@ -483,6 +484,11 @@ router.patch("/admin/users/:id/admin", requireAdmin, async (req, res): Promise<v
   const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
   if (!actorCanManageRoles) {
     logger.warn({ actorUserId: req.user!.userId, targetUserId: id, requestedIsAdmin: isAdmin }, "Blocked admin role mutation by non-bootstrap admin");
+    void notifyAdminSecurityEvent("Tentative modification role admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetUserId: id,
+      requestedIsAdmin: isAdmin,
+    });
     res.status(403).json({ error: "Seuls les super-admins autorises peuvent modifier les roles admin." });
     return;
   }
@@ -495,12 +501,23 @@ router.patch("/admin/users/:id/admin", requireAdmin, async (req, res): Promise<v
 
   if (isAdmin && !isBootstrapAdminTelegramId(target.telegramId)) {
     logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked admin promotion for non-whitelisted Telegram ID");
+    void notifyAdminSecurityEvent("Promotion admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetUserId: id,
+      targetTelegramId: target.telegramId,
+      reason: "target_not_whitelisted",
+    });
     res.status(403).json({ error: "Promotion admin refusee: Telegram ID non autorise." });
     return;
   }
 
   if (!isAdmin && isBootstrapAdminTelegramId(target.telegramId)) {
     logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked demotion of bootstrap admin");
+    void notifyAdminSecurityEvent("Demotion super-admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetUserId: id,
+      targetTelegramId: target.telegramId,
+    });
     res.status(403).json({ error: "Impossible de retirer les droits d'un super-admin de base." });
     return;
   }
@@ -511,6 +528,12 @@ router.patch("/admin/users/:id/admin", requireAdmin, async (req, res): Promise<v
     return;
   }
   logger.info({ actorUserId: req.user!.userId, targetUserId: user.id, targetTelegramId: user.telegramId, isAdmin: user.isAdmin }, "Admin role updated");
+  void notifyAdminSecurityEvent("Role admin modifie", {
+    actorUserId: req.user!.userId,
+    targetUserId: user.id,
+    targetTelegramId: user.telegramId,
+    isAdmin: user.isAdmin,
+  });
   res.json({ id: user.id, isAdmin: user.isAdmin });
 });
 
@@ -570,12 +593,22 @@ router.post("/admin/admins/promote", requireAdmin, async (req, res): Promise<voi
   const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
   if (!actorCanManageRoles) {
     logger.warn({ actorUserId: req.user!.userId, targetTelegramId: String(telegramId) }, "Blocked promote request by non-bootstrap admin");
+    void notifyAdminSecurityEvent("Promotion admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetTelegramId: String(telegramId),
+      reason: "actor_not_bootstrap",
+    });
     res.status(403).json({ error: "Seuls les super-admins autorises peuvent promouvoir un admin." });
     return;
   }
 
   if (!isBootstrapAdminTelegramId(String(telegramId))) {
     logger.warn({ actorUserId: req.user!.userId, targetTelegramId: String(telegramId) }, "Blocked promotion for non-whitelisted Telegram ID");
+    void notifyAdminSecurityEvent("Promotion admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetTelegramId: String(telegramId),
+      reason: "target_not_whitelisted",
+    });
     res.status(403).json({ error: "Promotion admin refusee: Telegram ID non autorise." });
     return;
   }
@@ -596,6 +629,11 @@ router.post("/admin/admins/promote", requireAdmin, async (req, res): Promise<voi
     .where(eq(usersTable.id, user.id))
     .returning();
   logger.info({ actorUserId: req.user!.userId, targetUserId: updated.id, targetTelegramId: updated.telegramId }, "Admin promoted");
+  void notifyAdminSecurityEvent("Admin promu", {
+    actorUserId: req.user!.userId,
+    targetUserId: updated.id,
+    targetTelegramId: updated.telegramId,
+  });
   res.json({
     id: updated.id,
     telegramId: updated.telegramId,
@@ -616,6 +654,11 @@ router.delete("/admin/admins/:id", requireAdmin, async (req, res): Promise<void>
   const actorCanManageRoles = await canActorManageAdminRoles(req.user!.userId);
   if (!actorCanManageRoles) {
     logger.warn({ actorUserId: req.user!.userId, targetUserId: id }, "Blocked admin demotion by non-bootstrap admin");
+    void notifyAdminSecurityEvent("Demotion admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetUserId: id,
+      reason: "actor_not_bootstrap",
+    });
     res.status(403).json({ error: "Seuls les super-admins autorises peuvent retirer les droits admin." });
     return;
   }
@@ -628,6 +671,11 @@ router.delete("/admin/admins/:id", requireAdmin, async (req, res): Promise<void>
 
   if (isBootstrapAdminTelegramId(target.telegramId)) {
     logger.warn({ actorUserId: req.user!.userId, targetUserId: id, targetTelegramId: target.telegramId }, "Blocked demotion of bootstrap admin");
+    void notifyAdminSecurityEvent("Demotion super-admin bloquee", {
+      actorUserId: req.user!.userId,
+      targetUserId: id,
+      targetTelegramId: target.telegramId,
+    });
     res.status(403).json({ error: "Impossible de retirer les droits d'un super-admin de base." });
     return;
   }
@@ -641,6 +689,11 @@ router.delete("/admin/admins/:id", requireAdmin, async (req, res): Promise<void>
     return;
   }
   logger.info({ actorUserId: req.user!.userId, targetUserId: updated.id, targetTelegramId: updated.telegramId }, "Admin demoted");
+  void notifyAdminSecurityEvent("Admin retrograde", {
+    actorUserId: req.user!.userId,
+    targetUserId: updated.id,
+    targetTelegramId: updated.telegramId,
+  });
   res.json({ id: updated.id, isAdmin: updated.isAdmin });
 });
 

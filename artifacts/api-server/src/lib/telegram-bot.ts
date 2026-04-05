@@ -14,6 +14,7 @@ let bot: TelegramBot | null = null;
 let botUsername: string | null = null;
 let miniAppBaseUrl: string | null = null;
 const storageService = new ObjectStorageService();
+const securityAlertCooldowns = new Map<string, number>();
 
 export function getBot(): TelegramBot | null {
   return bot;
@@ -281,6 +282,34 @@ async function notifyAdmin(text: string): Promise<void> {
       }
     }
   }
+}
+
+export async function notifyAdminSecurityEvent(
+  title: string,
+  details: Record<string, string | number | boolean | null | undefined> = {},
+): Promise<void> {
+  if (!bot || !ADMIN_CHAT_ID) return;
+
+  const key = `${title}:${JSON.stringify(details)}`;
+  const now = Date.now();
+  const cooldownMs = 5 * 60 * 1000;
+  const lastSentAt = securityAlertCooldowns.get(key) ?? 0;
+  if (now - lastSentAt < cooldownMs) return;
+  securityAlertCooldowns.set(key, now);
+
+  const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  const lines = Object.entries(details)
+    .filter(([, value]) => value !== undefined)
+    .map(([k, v]) => `• ${k}: ${String(v)}`)
+    .join("\n");
+
+  const text =
+    `🚨 *ALERTE SÉCURITÉ*\n\n` +
+    `*${title}*\n` +
+    (lines ? `${lines}\n` : "") +
+    `🕐 ${when}`;
+
+  await notifyAdmin(text);
 }
 
 export async function notifyAdminDeposit(params: {

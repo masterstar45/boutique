@@ -9,7 +9,7 @@ import { db, productsTable, usersTable } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { verifyToken } from "../lib/jwt";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { requireAuth } from "../middlewares/auth";
+import { requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -63,7 +63,7 @@ async function isPublicProductImage(objectPath: string): Promise<boolean> {
  * 
  * Requires: JWT authentication (Bearer token)
  */
-router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -96,7 +96,7 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
  *
  * Requires: JWT authentication (Bearer token)
  */
-router.put("/storage/uploads/direct/:id", requireAuth, express.raw({ type: '*/*', limit: '10mb' }), async (req: Request, res: Response) => {
+router.put("/storage/uploads/direct/:id", requireAdmin, express.raw({ type: '*/*', limit: '10mb' }), async (req: Request, res: Response) => {
   try {
     const objectIdRaw = req.params.id;
     const objectId = Array.isArray(objectIdRaw) ? objectIdRaw[0] : objectIdRaw;

@@ -7,6 +7,7 @@ import { processConfirmedDeposit } from "./deposits";
 import { verifyWebhookSignature } from "../lib/oxapay";
 import { logger } from "../lib/logger";
 import { getPublicMiniAppUrl } from "../lib/public-url";
+import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
 
 const router: IRouter = Router();
 const OXAPAY_STRICT_HMAC = process.env.OXAPAY_STRICT_HMAC === "true";
@@ -147,11 +148,21 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
   if (HAS_OXAPAY_KEY) {
     if (!hmacHeader || !verifyWebhookSignature(body, hmacHeader)) {
       logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook rejected: missing/invalid HMAC signature");
+      void notifyAdminSecurityEvent("Webhook paiement rejete", {
+        reason: "missing_or_invalid_hmac",
+        strict: OXAPAY_STRICT_HMAC,
+        hasApiKey: HAS_OXAPAY_KEY,
+      });
       res.sendStatus(403);
       return;
     }
   } else if (hmacHeader && !verifyWebhookSignature(body, hmacHeader)) {
     logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook: invalid HMAC signature in mock mode");
+    void notifyAdminSecurityEvent("Webhook paiement invalide en mode mock", {
+      reason: "invalid_hmac_mock",
+      strict: OXAPAY_STRICT_HMAC,
+      hasApiKey: HAS_OXAPAY_KEY,
+    });
     if (OXAPAY_STRICT_HMAC) {
       res.sendStatus(403);
       return;
