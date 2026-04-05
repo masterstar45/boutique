@@ -3,6 +3,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BotVerification } from "@/components/BotVerification";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -272,6 +273,29 @@ function MainApp() {
   );
 }
 
+function VerificationGate({ children }: { children: React.ReactNode }) {
+  const [isVerified, setIsVerified] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return sessionStorage.getItem("bankdata_turnstile_verified") === "1";
+  });
+
+  if (!isVerified) {
+    return (
+      <BotVerification
+        onVerified={() => {
+          sessionStorage.setItem("bankdata_turnstile_verified", "1");
+          setIsVerified(true);
+        }}
+        onError={(err) => {
+          console.warn("Turnstile verification issue:", err);
+        }}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -279,7 +303,9 @@ function App() {
         <AuthProvider>
           <CartProvider>
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <MainApp />
+              <VerificationGate>
+                <MainApp />
+              </VerificationGate>
             </WouterRouter>
             <Toaster />
           </CartProvider>
