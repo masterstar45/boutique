@@ -3,7 +3,6 @@ import crypto from "crypto";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { signToken } from "../lib/jwt";
-import { v4 as uuidv4 } from "uuid";
 import { verifyTurnstileToken } from "../lib/turnstile";
 
 const router: IRouter = Router();

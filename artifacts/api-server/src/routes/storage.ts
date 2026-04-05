@@ -55,7 +55,8 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
  */
 router.put("/storage/uploads/direct/:id", requireAuth, express.raw({ type: '*/*', limit: '10mb' }), async (req: Request, res: Response) => {
   try {
-    const objectId = req.params.id;
+    const objectIdRaw = req.params.id;
+    const objectId = Array.isArray(objectIdRaw) ? objectIdRaw[0] : objectIdRaw;
     // Validate objectId is a UUID to prevent path traversal
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
       res.status(400).json({ error: "Invalid object ID" });

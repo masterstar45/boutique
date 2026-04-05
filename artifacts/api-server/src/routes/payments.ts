@@ -196,7 +196,7 @@ router.get("/payments/:id/status", requireAuth, async (req, res): Promise<void> 
  * Returns the new stockUsed value, or null if insufficient stock.
  */
 async function reserveStock(
-  txDb: ReturnType<typeof drizzle>,
+  txDb: any,
   productId: number,
   recordsConsumed: number,
 ): Promise<{ stockUsed: number; stock: number } | null> {

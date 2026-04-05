@@ -422,6 +422,10 @@ async function signObjectURL({
     );
   }
 
-  const { signed_url: signedURL } = await response.json();
+  const json = (await response.json()) as { signed_url?: string };
+  const signedURL = json.signed_url;
+  if (!signedURL) {
+    throw new Error("Failed to sign object URL: signed_url missing in response");
+  }
   return signedURL;
 }
