@@ -16,6 +16,15 @@ type Bucket = {
 const buckets = new Map<string, Bucket>();
 
 let useMemoryFallback = false;
+let fallbackAlertSent = false;
+
+const sensitivePrefixes = new Set(["auth", "webhook", "downloads", "payments", "deposits", "uploads"]);
+
+function shouldFailClosed(keyPrefix: string): boolean {
+  const isProd = process.env.NODE_ENV === "production";
+  const failClosed = (process.env.RATE_LIMIT_FAIL_CLOSED ?? "true") === "true";
+  return isProd && failClosed && sensitivePrefixes.has(keyPrefix);
+}
 
 async function consumeDistributedBucket(key: string, windowMs: number, now: number): Promise<Bucket> {
   const resetAt = now + windowMs;
@@ -83,6 +92,25 @@ export function createRateLimiter(options: RateLimitOptions) {
       try {
         current = await consumeDistributedBucket(key, windowMs, now);
       } catch {
+        if (!fallbackAlertSent) {
+          fallbackAlertSent = true;
+          void notifyAdminSecurityEvent("Rate limiter fallback memoire active", {
+            reason: "distributed_store_unavailable",
+            keyPrefix,
+          });
+        }
+
+        if (shouldFailClosed(keyPrefix)) {
+          res.setHeader("Retry-After", "30");
+          res.status(503).json({ error: "Service temporairement indisponible (protection anti-abus)." });
+          void notifyAdminSecurityEvent("Rate limiter fail-closed", {
+            route: req.originalUrl || req.url,
+            keyPrefix,
+            actor: userPart,
+          });
+          return;
+        }
+
         useMemoryFallback = true;
         current = consumeMemoryBucket(key, windowMs, now);
       }

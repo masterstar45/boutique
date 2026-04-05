@@ -5,6 +5,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
+const debugEndpointEnabled = process.env.NODE_ENV !== "production" || process.env.ENABLE_DEBUG_ENDPOINT === "true";
 
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -26,6 +27,11 @@ router.get("/health/turnstile-config", (_req, res) => {
  * Show user info, Telegram ID, and admin status - useful for debugging
  */
 router.get("/health/debug", requireAdmin, async (req, res) => {
+  if (!debugEndpointEnabled) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   try {
     const user = await db.select().from(usersTable)
       .where(eq(usersTable.id, req.user!.userId))

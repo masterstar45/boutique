@@ -8,6 +8,7 @@ function enforceProductionSecurityConfig(): void {
 
   const oxapayKey = process.env.OXAPAY_API_KEY?.trim();
   const strictHmac = process.env.OXAPAY_STRICT_HMAC === "true";
+  const mockMode = process.env.OXAPAY_MOCK_MODE === "true";
 
   if (!oxapayKey) {
     throw new Error("OXAPAY_API_KEY must be set in production");
@@ -15,6 +16,10 @@ function enforceProductionSecurityConfig(): void {
 
   if (!strictHmac) {
     throw new Error("OXAPAY_STRICT_HMAC must be 'true' in production");
+  }
+
+  if (mockMode) {
+    throw new Error("OXAPAY_MOCK_MODE must be disabled in production");
   }
 }
 

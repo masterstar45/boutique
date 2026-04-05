@@ -3,6 +3,17 @@ import crypto from "crypto";
 
 const OXAPAY_API_KEY = process.env.OXAPAY_API_KEY;
 const OXAPAY_BASE = "https://api.oxapay.com";
+const OXAPAY_MOCK_MODE = (process.env.OXAPAY_MOCK_MODE ?? "").trim().toLowerCase() === "true";
+
+function canUseMockMode(): boolean {
+  return OXAPAY_MOCK_MODE && process.env.NODE_ENV !== "production";
+}
+
+function ensureOxaPayConfigured(action: string): void {
+  if (OXAPAY_API_KEY) return;
+  if (canUseMockMode()) return;
+  throw new Error(`OXAPAY_API_KEY missing for ${action}. Set OXAPAY_MOCK_MODE=true only in non-production.`);
+}
 
 export interface OxaPayPaymentLink {
   trackId: string;
@@ -25,7 +36,9 @@ export async function createPaymentLink(params: {
   returnUrl?: string;
   description?: string;
 }): Promise<OxaPayPaymentLink> {
-  if (!OXAPAY_API_KEY) {
+  ensureOxaPayConfigured("createPaymentLink");
+
+  if (!OXAPAY_API_KEY && canUseMockMode()) {
     const mockTrack = `mock_${Date.now()}`;
     return {
       trackId: mockTrack,
@@ -65,7 +78,9 @@ export async function createPaymentLink(params: {
 }
 
 export async function getPaymentStatus(trackId: string): Promise<OxaPayStatus> {
-  if (!OXAPAY_API_KEY) {
+  ensureOxaPayConfigured("getPaymentStatus");
+
+  if (!OXAPAY_API_KEY && canUseMockMode()) {
     return { status: "Waiting" };
   }
 
@@ -78,7 +93,7 @@ export async function getPaymentStatus(trackId: string): Promise<OxaPayStatus> {
 }
 
 export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: string): boolean {
-  if (!OXAPAY_API_KEY) return true;
+  if (!OXAPAY_API_KEY) return canUseMockMode();
   const hmac = crypto.createHmac("sha512", OXAPAY_API_KEY)
     .update(JSON.stringify(body))
     .digest("hex");
