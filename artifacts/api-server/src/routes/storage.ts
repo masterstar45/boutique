@@ -5,11 +5,54 @@ import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
 } from "@workspace/api-zod";
+import { db, productsTable, usersTable } from "@workspace/db";
+import { eq, or } from "drizzle-orm";
+import { verifyToken } from "../lib/jwt";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { requireAuth, requireAdmin } from "../middlewares/auth";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+async function isRequestFromAdmin(req: Request): Promise<boolean> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    return false;
+  }
+
+  try {
+    const payload = verifyToken(auth.slice(7));
+    if (payload.isAdmin) {
+      return true;
+    }
+
+    const user = await db
+      .select({ isAdmin: usersTable.isAdmin })
+      .from(usersTable)
+      .where(eq(usersTable.id, payload.userId))
+      .then((rows) => rows[0]);
+
+    return !!user?.isAdmin;
+  } catch {
+    return false;
+  }
+}
+
+async function isPublicProductImage(objectPath: string): Promise<boolean> {
+  const absoluteApiPath = `/api/storage${objectPath}`;
+  const row = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(
+      or(
+        eq(productsTable.imageUrl, absoluteApiPath),
+        eq(productsTable.imageUrl, objectPath),
+      ),
+    )
+    .then((rows) => rows[0]);
+
+  return !!row;
+}
 
 /**
  * POST /storage/uploads/request-url
@@ -121,10 +164,20 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
  * These are served from a separate path from /public-objects and can optionally
  * be protected with authentication or ACL checks based on the use case.
  */
-router.get("/storage/objects/*path", requireAdmin, async (req: Request, res: Response) => {
+router.get("/storage/objects/*path", async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath = `/objects/${wildcardPath}`;
+    const [isPublicImage, isAdminRequest] = await Promise.all([
+      isPublicProductImage(objectPath),
+      isRequestFromAdmin(req),
+    ]);
+
+    if (!isPublicImage && !isAdminRequest) {
+      res.status(403).json({ error: "Acces refuse" });
+      return;
+    }
 
     // Local filesystem fallback when GCS is not configured
     if (!objectStorageService.isGCSConfigured()) {
@@ -142,18 +195,18 @@ router.get("/storage/objects/*path", requireAdmin, async (req: Request, res: Res
       }
       res.setHeader('Content-Type', localFile.contentType);
       res.setHeader('Content-Length', String(localFile.size));
-      res.setHeader('Cache-Control', 'private, no-store');
+      res.setHeader('Cache-Control', isPublicImage ? 'public, max-age=3600' : 'private, no-store');
       res.end(localFile.buffer);
       return;
     }
 
-    const objectPath = `/objects/${wildcardPath}`;
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
+    res.setHeader('Cache-Control', isPublicImage ? 'public, max-age=3600' : 'private, no-store');
 
     if (response.body) {
       const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
