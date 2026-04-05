@@ -25,8 +25,8 @@ function generateAffiliateCode(telegramId: string): string {
 
 function validateTelegramInitData(initData: string): boolean {
   const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  // No bot token configured (dev mode) — skip validation
-  if (!BOT_TOKEN) return true;
+  // Security-first: never accept Telegram auth when bot token is missing.
+  if (!BOT_TOKEN) return false;
   // Bot token is set but no initData provided — reject
   if (!initData) return false;
 
@@ -39,10 +39,22 @@ function validateTelegramInitData(initData: string): boolean {
     const entries = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b));
     const dataCheckString = entries.map(([k, v]) => `${k}=${v}`).join("\n");
 
+    const authDateRaw = params.get("auth_date");
+    if (authDateRaw) {
+      const authDateSeconds = Number(authDateRaw);
+      if (!Number.isFinite(authDateSeconds)) return false;
+      const ageMs = Date.now() - authDateSeconds * 1000;
+      // Reject replayed payloads older than 10 minutes.
+      if (ageMs < 0 || ageMs > 10 * 60 * 1000) return false;
+    }
+
     const secretKey = crypto.createHmac("sha256", "WebAppData").update(BOT_TOKEN).digest();
     const expectedHash = crypto.createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
 
-    return expectedHash === hash;
+    const expected = Buffer.from(expectedHash, "hex");
+    const provided = Buffer.from(hash, "hex");
+    if (expected.length !== provided.length) return false;
+    return crypto.timingSafeEqual(expected, provided);
   } catch {
     return false;
   }

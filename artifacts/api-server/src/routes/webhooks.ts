@@ -10,6 +10,7 @@ import { getPublicMiniAppUrl } from "../lib/public-url";
 
 const router: IRouter = Router();
 const OXAPAY_STRICT_HMAC = process.env.OXAPAY_STRICT_HMAC === "true";
+const HAS_OXAPAY_KEY = Boolean(process.env.OXAPAY_API_KEY?.trim());
 
 const ADMIN_IDS: Set<string> = new Set(
   (process.env.TELEGRAM_ADMIN_CHAT_ID ?? "")
@@ -138,10 +139,17 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
 
   logger.info({ body }, "Payment webhook received");
 
-  // Verify OxaPay webhook signature
+  // Verify OxaPay webhook signature.
+  // In production mode (API key configured), signature is mandatory.
   const hmacHeader = pickString(req.headers, ["hmac", "x-hmac", "x-signature", "signature"]);
-  if (hmacHeader && !verifyWebhookSignature(body, hmacHeader)) {
-    logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook: invalid HMAC signature");
+  if (HAS_OXAPAY_KEY) {
+    if (!hmacHeader || !verifyWebhookSignature(body, hmacHeader)) {
+      logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook rejected: missing/invalid HMAC signature");
+      res.sendStatus(403);
+      return;
+    }
+  } else if (hmacHeader && !verifyWebhookSignature(body, hmacHeader)) {
+    logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook: invalid HMAC signature in mock mode");
     if (OXAPAY_STRICT_HMAC) {
       res.sendStatus(403);
       return;
