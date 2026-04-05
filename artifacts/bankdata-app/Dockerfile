@@ -18,5 +18,6 @@ COPY artifacts/bankdata-app artifacts/bankdata-app
 RUN pnpm --filter bankdata-app build
 
 ENV BASE_PATH=/
+ENV PORT=8080
 
-CMD ["pnpm", "--filter", "bankdata-app", "preview", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "pnpm --filter bankdata-app preview --host 0.0.0.0 --port ${PORT:-8080}"]
