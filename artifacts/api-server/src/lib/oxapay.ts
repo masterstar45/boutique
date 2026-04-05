@@ -99,5 +99,8 @@ export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: 
     .digest("hex");
   const normalizedSent = hmacSent.replace(/^sha512=/i, "").trim().toLowerCase();
   const normalizedCalculated = hmac.trim().toLowerCase();
-  return normalizedCalculated === normalizedSent;
+  const expected = Buffer.from(normalizedCalculated, "utf8");
+  const provided = Buffer.from(normalizedSent, "utf8");
+  if (expected.length !== provided.length) return false;
+  return crypto.timingSafeEqual(expected, provided);
 }

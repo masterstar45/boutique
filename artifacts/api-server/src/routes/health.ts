@@ -5,7 +5,7 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
-const debugEndpointEnabled = process.env.NODE_ENV !== "production" || process.env.ENABLE_DEBUG_ENDPOINT === "true";
+const debugEndpointEnabled = process.env.NODE_ENV !== "production";
 
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });

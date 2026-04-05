@@ -17,6 +17,8 @@ const buckets = new Map<string, Bucket>();
 
 let useMemoryFallback = false;
 let fallbackAlertSent = false;
+let lastFallbackAt = 0;
+const fallbackRetryMs = 60 * 1000;
 
 const sensitivePrefixes = new Set(["auth", "webhook", "downloads", "payments", "deposits", "uploads"]);
 
@@ -85,6 +87,11 @@ export function createRateLimiter(options: RateLimitOptions) {
     const userPart = req.user?.userId ? `u:${req.user.userId}` : `ip:${ip}`;
     const key = `${keyPrefix}:${userPart}`;
 
+    if (useMemoryFallback && now - lastFallbackAt >= fallbackRetryMs) {
+      useMemoryFallback = false;
+      fallbackAlertSent = false;
+    }
+
     let current: Bucket;
     if (useMemoryFallback) {
       current = consumeMemoryBucket(key, windowMs, now);
@@ -94,6 +101,7 @@ export function createRateLimiter(options: RateLimitOptions) {
       } catch {
         if (!fallbackAlertSent) {
           fallbackAlertSent = true;
+          lastFallbackAt = now;
           void notifyAdminSecurityEvent("Rate limiter fallback memoire active", {
             reason: "distributed_store_unavailable",
             keyPrefix,
@@ -112,6 +120,7 @@ export function createRateLimiter(options: RateLimitOptions) {
         }
 
         useMemoryFallback = true;
+        lastFallbackAt = now;
         current = consumeMemoryBucket(key, windowMs, now);
       }
     }
