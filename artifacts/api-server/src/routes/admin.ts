@@ -254,9 +254,12 @@ function normalizePriceOptions(
   return (priceOptions ?? []).map((opt) => {
     const parsed = Number.parseFloat(String(opt.price ?? "").replace(",", ".").trim());
     const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    const qtyRaw = parseInt(String(opt.quantity ?? "0"), 10);
+    const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 0;
     return {
       ...opt,
       price: (Math.round(safe * 100) / 100).toFixed(2),
+      quantity: String(qty),
     };
   });
 }
@@ -326,6 +329,10 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
   }
 
   const normalizedPriceOptions = normalizePriceOptions(priceOptions);
+  if (normalizedPriceOptions.some(o => (parseInt(String(o.quantity ?? "0"), 10) || 0) <= 0)) {
+    res.status(400).json({ error: "Chaque option de prix doit avoir une quantite livree > 0" });
+    return;
+  }
   const price = computeBasePrice(normalizedPriceOptions);
 
   let processedFileUrl = fileUrl ?? null;
@@ -373,6 +380,10 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
   }
 
   const normalizedPriceOptions = normalizePriceOptions(priceOptions);
+  if (normalizedPriceOptions.some(o => (parseInt(String(o.quantity ?? "0"), 10) || 0) <= 0)) {
+    res.status(400).json({ error: "Chaque option de prix doit avoir une quantite livree > 0" });
+    return;
+  }
   const price = computeBasePrice(normalizedPriceOptions);
 
   let processedFileUrl = fileUrl ?? null;

@@ -345,13 +345,19 @@ export function AdminProducts() {
     e.preventDefault();
     const tags = buildTags(form.productType, form.country);
     const validOptions = form.priceOptions
-      .filter(o => o.label.trim() && o.price.trim())
+      .filter(o => o.label.trim() && o.price.trim() && String(o.quantity ?? '').trim())
       .map(o => ({
         ...o,
         price: normalizePriceInput(o.price),
       }));
     if (validOptions.length === 0) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Ajoutez au moins une option de prix complete.' });
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Chaque option doit avoir un label, un prix et une quantite livree > 0.' });
+      return;
+    }
+
+    const hasInvalidQuantity = validOptions.some(o => (parseInt(String(o.quantity ?? '0'), 10) || 0) <= 0);
+    if (hasInvalidQuantity) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'La quantite livree doit etre superieure a 0 pour toutes les options.' });
       return;
     }
     const payload = {

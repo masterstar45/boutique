@@ -371,7 +371,10 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
         productFileUrl: item.productFileUrl ? "yes" : "no",
       }, "Item details");
 
-      if (item.productFileUrl && recordsConsumed > 0) {
+      if (item.productFileUrl) {
+        if (recordsConsumed <= 0) {
+          throw new Error(`Configuration invalide: quantite livree non definie pour ${item.productName} (produit ${item.productId})`);
+        }
         const reserved = await reserveStock(txDb, item.productId, recordsConsumed);
         if (!reserved) {
           throw new Error(`Stock insuffisant pour ${item.productName} (produit ${item.productId})`);
