@@ -317,6 +317,8 @@ export async function notifyAdminSecurityEvent(
 ): Promise<void> {
   if (!bot) return;
 
+  const escapeMarkdown = (value: string): string => value.replace(/([_\*\[\]\(\)~`>#\+\-=|{}.!\\])/g, "\\$1");
+
   const key = `${title}:${JSON.stringify(details)}`;
   const now = Date.now();
   const cooldownMs = 5 * 60 * 1000;
@@ -327,7 +329,7 @@ export async function notifyAdminSecurityEvent(
   const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
   const lines = Object.entries(details)
     .filter(([, value]) => value !== undefined)
-    .map(([k, v]) => `• ${k}: ${String(v)}`)
+    .map(([k, v]) => `• ${escapeMarkdown(k)}: ${escapeMarkdown(String(v))}`)
     .join("\n");
 
   const text =

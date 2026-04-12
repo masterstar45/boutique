@@ -60,8 +60,18 @@ type RejectionStats = {
 };
 
 const rejectionWindowMs = 10 * 60 * 1000;
-const rejectionAlertThreshold = 5;
+const defaultRejectionAlertThreshold = 5;
 const rejectionStatsByKey = new Map<string, RejectionStats>();
+
+function getRejectionAlertThreshold(reason: string, path: string): number {
+  if (reason === "auth_invalid_token") {
+    // Session/token refresh races are common in Telegram WebView; alert later to reduce noise.
+    if (path.startsWith("/api/deposits")) return 10;
+    return 8;
+  }
+  if (reason === "auth_missing_token") return 8;
+  return defaultRejectionAlertThreshold;
+}
 
 function getClientIp(req: Request): string {
   const forwarded = req.headers["x-forwarded-for"];
@@ -75,6 +85,8 @@ function trackSecurityRejection(req: Request, reason: string): void {
   const ip = getClientIp(req);
   const path = req.originalUrl || req.path || "unknown";
   const method = req.method || "UNKNOWN";
+  const userAgent = String(req.headers["user-agent"] || "unknown").slice(0, 160);
+  const threshold = getRejectionAlertThreshold(reason, path);
   const key = `${reason}:${ip}`;
   const now = Date.now();
   const current = rejectionStatsByKey.get(key);
@@ -85,7 +97,7 @@ function trackSecurityRejection(req: Request, reason: string): void {
   }
 
   current.count += 1;
-  if (current.count < rejectionAlertThreshold) return;
+  if (current.count < threshold) return;
   if (now - current.lastAlertAt < rejectionWindowMs) return;
 
   current.lastAlertAt = now;
@@ -94,7 +106,9 @@ function trackSecurityRejection(req: Request, reason: string): void {
     ip,
     method,
     path,
+    userAgent,
     count: current.count,
+    threshold,
     windowMinutes: rejectionWindowMs / 60000,
   });
 }
