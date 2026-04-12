@@ -636,7 +636,13 @@ export function AdminProducts() {
                 <FileUploadButton
                   label="Fichier de stock (donnees a distribuer)"
                   value={form.fileUrl}
-                  onChange={(v, metadata) => setForm({ ...form, fileUrl: v, fileName: metadata?.fileName || '', fileType: metadata?.fileType || '', fileSize: metadata?.fileSize || 0 })}
+                  onChange={(v, metadata) => setForm(prev => ({
+                    ...prev,
+                    fileUrl: v,
+                    fileName: metadata?.fileName || '',
+                    fileType: metadata?.fileType || '',
+                    fileSize: metadata?.fileSize || 0,
+                  }))}
                   accept=".txt,.csv"
                   icon={<Upload className="w-4 h-4 text-white/25" />}
                   hint="TXT ou CSV — 1 enregistrement par ligne — max 50 MB"
@@ -650,7 +656,7 @@ export function AdminProducts() {
                 <FileUploadButton
                   label="Image produit (optionnelle)"
                   value={form.imageUrl}
-                  onChange={v => setForm({ ...form, imageUrl: v })}
+                  onChange={v => setForm(prev => ({ ...prev, imageUrl: v }))}
                   accept="image/*"
                   icon={<ImageIcon className="w-4 h-4 text-white/25" />}
                   hint="JPG, PNG, WebP — max 5 MB"
