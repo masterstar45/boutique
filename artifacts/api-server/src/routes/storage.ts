@@ -11,6 +11,7 @@ import { verifyToken } from "../lib/jwt";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAdmin } from "../middlewares/auth";
 import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
+import { getPublicApiBaseUrl } from "../lib/public-url";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -42,6 +43,9 @@ async function isRequestFromAdmin(req: Request): Promise<boolean> {
 
 async function isPublicProductImage(objectPath: string): Promise<boolean> {
   const absoluteApiPath = `/api/storage${objectPath}`;
+  const publicApiBaseUrl = (getPublicApiBaseUrl() || "").replace(/\/+$/, "");
+  const absoluteApiUrl = publicApiBaseUrl ? `${publicApiBaseUrl}${absoluteApiPath}` : "";
+
   const row = await db
     .select({ id: productsTable.id })
     .from(productsTable)
@@ -49,6 +53,7 @@ async function isPublicProductImage(objectPath: string): Promise<boolean> {
       or(
         eq(productsTable.imageUrl, absoluteApiPath),
         eq(productsTable.imageUrl, objectPath),
+        ...(absoluteApiUrl ? [eq(productsTable.imageUrl, absoluteApiUrl)] : []),
       ),
     )
     .then((rows) => rows[0]);
