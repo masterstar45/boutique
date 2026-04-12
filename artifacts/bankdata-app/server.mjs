@@ -51,6 +51,7 @@ function setSecurityHeaders(res) {
   res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
   res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
   res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
   res.setHeader("Origin-Agent-Cluster", "?1");
   res.setHeader(
     "Content-Security-Policy",
