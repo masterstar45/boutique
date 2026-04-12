@@ -4,7 +4,26 @@ import { extname, join, normalize } from "node:path";
 
 const port = Number(process.env.PORT || 8080);
 const host = "0.0.0.0";
-const distDir = join(process.cwd(), "artifacts", "bankdata-app", "dist");
+
+function resolveDistDir() {
+  const cwd = process.cwd();
+  const candidates = [
+    join(cwd, "dist"),
+    join(cwd, "artifacts", "bankdata-app", "dist"),
+    join("/app", "artifacts", "bankdata-app", "dist"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(join(candidate, "index.html"))) {
+      return candidate;
+    }
+  }
+
+  // Fallback to first candidate to keep behavior deterministic.
+  return candidates[0];
+}
+
+const distDir = resolveDistDir();
 const indexPath = join(distDir, "index.html");
 
 const mimeTypes = {
@@ -80,6 +99,16 @@ const server = createServer((req, res) => {
   }
 
   const urlPath = req.url || "/";
+
+  if (urlPath === "/healthz") {
+    setSecurityHeaders(res);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.statusCode = 200;
+    res.end("ok");
+    return;
+  }
+
   let filePath = resolveSafePath(urlPath);
 
   if (urlPath === "/" || urlPath === "") {
@@ -107,4 +136,5 @@ const server = createServer((req, res) => {
 
 server.listen(port, host, () => {
   console.log(`[bankdata-app] Listening on http://${host}:${port}`);
+  console.log(`[bankdata-app] Dist directory: ${distDir}`);
 });

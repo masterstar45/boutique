@@ -3,7 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "artifacts/bankdata-app/Dockerfile"
 
 [deploy]
-healthcheckPath = "/"
+healthcheckPath = "/healthz"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
