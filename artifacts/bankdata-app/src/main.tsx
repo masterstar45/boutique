@@ -8,7 +8,7 @@ const envApiBaseUrl = typeof import.meta.env.VITE_API_BASE_URL === "string"
 	: "";
 
 const runtimeFallbackApiBaseUrl =
-	typeof window !== "undefined" && window.location.hostname.endsWith("up.railway.app")
+	typeof window !== "undefined" && window.location.hostname !== "localhost" && !window.location.hostname.startsWith("127.")
 		? "https://api-server-production-823c.up.railway.app"
 		: "";
 
