@@ -137,6 +137,7 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
 
 router.post("/payment-webhook", async (req, res): Promise<void> => {
   const body = req.body;
+  const rawBody = (req as any).rawBody;
   logger.info({
     status: normalizeStatus(body?.status),
     trackId: pickString(body, ["trackId", "track_id", "trackID"]),
@@ -146,7 +147,7 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
   // In production mode (API key configured), signature is mandatory.
   const hmacHeader = pickString(req.headers, ["hmac", "x-hmac", "x-signature", "signature"]);
   if (HAS_OXAPAY_KEY) {
-    if (!hmacHeader || !verifyWebhookSignature(body, hmacHeader)) {
+    if (!hmacHeader || !verifyWebhookSignature(body, hmacHeader, rawBody)) {
       logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook rejected: missing/invalid HMAC signature");
       void notifyAdminSecurityEvent("Webhook paiement rejete", {
         reason: "missing_or_invalid_hmac",
@@ -156,7 +157,7 @@ router.post("/payment-webhook", async (req, res): Promise<void> => {
       res.sendStatus(403);
       return;
     }
-  } else if (hmacHeader && !verifyWebhookSignature(body, hmacHeader)) {
+  } else if (hmacHeader && !verifyWebhookSignature(body, hmacHeader, rawBody)) {
     logger.warn({ strict: OXAPAY_STRICT_HMAC }, "Payment webhook: invalid HMAC signature in mock mode");
     void notifyAdminSecurityEvent("Webhook paiement invalide en mode mock", {
       reason: "invalid_hmac_mock",

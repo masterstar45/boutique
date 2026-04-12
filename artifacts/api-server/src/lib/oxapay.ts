@@ -92,10 +92,13 @@ export async function getPaymentStatus(trackId: string): Promise<OxaPayStatus> {
   return response.data;
 }
 
-export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: string): boolean {
+export function verifyWebhookSignature(body: Record<string, unknown>, hmacSent: string, rawBody?: string): boolean {
   if (!OXAPAY_API_KEY) return canUseMockMode();
+  
+  // Use raw body if available (for accurate HMAC verification), otherwise fallback to JSON stringification
+  const bodyToHash = rawBody ?? JSON.stringify(body);
   const hmac = crypto.createHmac("sha512", OXAPAY_API_KEY)
-    .update(JSON.stringify(body))
+    .update(bodyToHash)
     .digest("hex");
   const normalizedSent = hmacSent.replace(/^sha512=/i, "").trim().toLowerCase();
   const normalizedCalculated = hmac.trim().toLowerCase();
