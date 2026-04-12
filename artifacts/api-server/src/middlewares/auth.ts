@@ -30,11 +30,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, async () => {
-    if (req.user?.isAdmin) {
-      next();
-      return;
-    }
-
     try {
       const user = await db.select({ isAdmin: usersTable.isAdmin })
         .from(usersTable)
