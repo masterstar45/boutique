@@ -13,6 +13,7 @@ import { requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+const DIRECT_UPLOAD_LIMIT = process.env.STORAGE_DIRECT_UPLOAD_LIMIT || "100mb";
 
 async function isRequestFromAdmin(req: Request): Promise<boolean> {
   const auth = req.headers.authorization;
@@ -101,7 +102,7 @@ router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, r
  *
  * Requires: JWT authentication (Bearer token)
  */
-router.put("/storage/uploads/direct/:id", requireAdmin, express.raw({ type: '*/*', limit: '10mb' }), async (req: Request, res: Response) => {
+router.put("/storage/uploads/direct/:id", requireAdmin, express.raw({ type: '*/*', limit: DIRECT_UPLOAD_LIMIT }), async (req: Request, res: Response) => {
   try {
     const objectIdRaw = req.params.id;
     const objectId = Array.isArray(objectIdRaw) ? objectIdRaw[0] : objectIdRaw;
