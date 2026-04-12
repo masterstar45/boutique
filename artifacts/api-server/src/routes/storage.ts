@@ -119,10 +119,10 @@ router.put("/storage/uploads/direct/:id", requireAdmin, express.raw({ type: '*/*
     }
 
     const contentType = (req.headers['content-type'] as string) || 'application/octet-stream';
-    await objectStorageService.saveLocalFile(objectId, data, contentType);
+    const objectPath = await objectStorageService.saveDirectUpload(objectId, data, contentType);
 
-    req.log.info({ objectId, size: data.length, contentType }, "Local file uploaded");
-    res.status(200).json({ ok: true });
+    req.log.info({ objectId, objectPath, size: data.length, contentType }, "Direct file uploaded");
+    res.status(200).json({ ok: true, objectPath });
   } catch (error) {
     req.log.error({ err: error }, "Error saving direct upload");
     res.status(500).json({ error: "Failed to save upload" });

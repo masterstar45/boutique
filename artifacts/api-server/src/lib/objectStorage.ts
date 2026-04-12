@@ -295,6 +295,25 @@ export class ObjectStorageService {
   }
 
   /**
+   * Save direct upload by explicit objectId so frontend can fallback from signed URLs.
+   * Works with both GCS and local PostgreSQL storage.
+   */
+  async saveDirectUpload(objectId: string, data: Buffer, contentType: string): Promise<string> {
+    if (!this.isGCSConfigured()) {
+      await this.saveLocalFile(objectId, data, contentType);
+      return `/objects/uploads/${objectId}`;
+    }
+
+    const privateObjectDir = this.getPrivateObjectDir();
+    const fullPath = `${privateObjectDir}/uploads/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(data, { contentType, metadata: { contentType } });
+    return `/objects/uploads/${objectId}`;
+  }
+
+  /**
    * List all files in the local uploads directory (for diagnostics).
    */
   listLocalFiles(): Array<{ id: string; size: number }> {

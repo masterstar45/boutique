@@ -208,6 +208,34 @@ export function useUpload(options: UseUploadOptions = {}) {
     []
   );
 
+  const uploadToDirectApi = useCallback(
+    async (file: File, objectPath: string): Promise<void> => {
+      const objectId = objectPath.split("/").filter(Boolean).pop();
+      if (!objectId) {
+        throw new Error("Missing object ID for direct upload fallback");
+      }
+
+      const url = `${basePath}/uploads/direct/${objectId}`;
+      const token = typeof window !== "undefined" ? localStorage.getItem("bankdata_token") : null;
+      const headers: Record<string, string> = {
+        "Content-Type": file.type || "application/octet-stream",
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      console.warn("[uploadToDirectApi] Falling back to direct upload", { url, objectPath, hasToken: !!token });
+      const response = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: file,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Direct upload fallback failed (HTTP ${response.status})`);
+      }
+    },
+    [basePath]
+  );
+
   const uploadFile = useCallback(
     async (file: File): Promise<UploadResponse | null> => {
       console.log("[uploadFile] Starting file upload process for:", file.name);
@@ -222,7 +250,12 @@ export function useUpload(options: UseUploadOptions = {}) {
 
         console.log("[uploadFile] Progress 30% - uploading to presigned URL");
         setProgress(30);
-        await uploadToPresignedUrl(file, uploadResponse.uploadURL);
+        try {
+          await uploadToPresignedUrl(file, uploadResponse.uploadURL);
+        } catch (signedErr) {
+          console.warn("[uploadFile] Signed upload failed, retrying with direct upload fallback", signedErr);
+          await uploadToDirectApi(file, uploadResponse.objectPath);
+        }
 
         console.log("[uploadFile] Progress 100% - upload complete");
         setProgress(100);
@@ -238,7 +271,7 @@ export function useUpload(options: UseUploadOptions = {}) {
         setIsUploading(false);
       }
     },
-    [requestUploadUrl, uploadToPresignedUrl, options]
+    [requestUploadUrl, uploadToPresignedUrl, uploadToDirectApi, options]
   );
 
   const getUploadParameters = useCallback(
