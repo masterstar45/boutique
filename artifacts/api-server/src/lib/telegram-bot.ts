@@ -268,9 +268,36 @@ export async function sendOrderDeliveryFiles(
 }
 
 async function notifyAdmin(text: string): Promise<void> {
-  if (!bot || !ADMIN_CHAT_ID) return;
-  const ids = ADMIN_CHAT_ID.split(",").map(s => s.trim()).filter(Boolean);
-  for (const id of ids) {
+  if (!bot) return;
+
+  // Collect admin IDs from both environment variable and database
+  const adminIds = new Set<string>();
+
+  // Add IDs from environment variable (TELEGRAM_ADMIN_CHAT_ID)
+  if (ADMIN_CHAT_ID) {
+    ADMIN_CHAT_ID.split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+      .forEach(id => adminIds.add(id));
+  }
+
+  // Add IDs from database (users with isAdmin=true and telegramId set)
+  try {
+    const dbAdmins = await db.select({ telegramId: usersTable.telegramId })
+      .from(usersTable)
+      .where(eq(usersTable.isAdmin, true));
+
+    for (const admin of dbAdmins) {
+      if (admin.telegramId) {
+        adminIds.add(admin.telegramId);
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Failed to fetch admin IDs from database");
+  }
+
+  // Send to all collected admin IDs
+  for (const id of adminIds) {
     try {
       await bot.sendMessage(parseInt(id), text, { parse_mode: "Markdown" });
     } catch (err) {
@@ -288,7 +315,7 @@ export async function notifyAdminSecurityEvent(
   title: string,
   details: Record<string, string | number | boolean | null | undefined> = {},
 ): Promise<void> {
-  if (!bot || !ADMIN_CHAT_ID) return;
+  if (!bot) return;
 
   const key = `${title}:${JSON.stringify(details)}`;
   const now = Date.now();
