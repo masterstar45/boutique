@@ -35,6 +35,19 @@ export function formatDate(dateString: string): string {
  */
 export function resolveImageUrl(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
+
+  if (/^https?:\/\//i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.pathname.startsWith('/api/storage/objects/')) {
+        // Prefer same-origin proxy path for maximum compatibility in Telegram WebView.
+        return `${parsed.pathname}${parsed.search}`;
+      }
+    } catch {
+    }
+    return url;
+  }
+
   if (!url.startsWith('/api/')) return url;
 
   let base = '';
