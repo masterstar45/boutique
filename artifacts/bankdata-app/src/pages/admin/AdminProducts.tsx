@@ -5,7 +5,6 @@ import { AdminLayout } from '@/components/layout/AdminLayout';
 import { formatMoney, resolveImageUrl } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, FileCheck, Image as ImageIcon, Loader2, Link, Search, PlusCircle, GripVertical } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUpload } from '@workspace/object-storage-web';
 import { COUNTRIES as RAW_COUNTRIES } from '@/lib/countries';
 import type { ProductListResponse } from '@workspace/api-client-react';
 
@@ -52,6 +51,17 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function resolveApiBaseUrl(): string {
+  if (typeof window !== 'undefined' && (window as any).__API_BASE_URL) {
+    return String((window as any).__API_BASE_URL).replace(/\/+$/, '');
+  }
+  const env = (import.meta as any)?.env?.VITE_API_BASE_URL;
+  if (typeof env === 'string' && env.trim()) {
+    return env.trim().replace(/\/+$/, '');
+  }
+  return 'https://api-server-production-823c.up.railway.app';
+}
+
 interface FileUploadButtonProps {
   value: string;
   onChange: (url: string, metadata?: { fileName: string; fileType: string; fileSize: number }) => void;
@@ -69,6 +79,8 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
   const [uploadedFileName, setUploadedFileName] = useState(initialFileName || '');
   const [uploadedFileSize, setUploadedFileSize] = useState(initialFileSize || 0);
   const [uploadedFileType, setUploadedFileType] = useState(initialFileType || '');
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -79,37 +91,79 @@ function FileUploadButton({ value, onChange, accept, label, icon, hint, initialF
     }
   }, [value, initialFileName]);
 
-  const { uploadFile, isUploading, progress } = useUpload({
-    onSuccess: (response) => {
-      if (!response.objectPath) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Chemin d\'objet invalide' });
-        return;
-      }
-      const fileUrl = `/api/storage${response.objectPath}`;
-      const metadata = response.metadata ? {
-        fileName: response.metadata.name || uploadedFileName,
-        fileType: response.metadata.contentType || uploadedFileType,
-        fileSize: response.metadata.size || uploadedFileSize,
-      } : {
-        fileName: uploadedFileName,
-        fileType: uploadedFileType,
-        fileSize: uploadedFileSize,
-      };
-      onChange(fileUrl, metadata);
-      toast({ title: 'Fichier uploade', description: `Stocke a ${response.objectPath}` });
-    },
-    onError: (err) => {
-      toast({ variant: 'destructive', title: 'Erreur upload', description: err.message });
-    },
-  });
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedFileName(file.name);
     setUploadedFileSize(file.size);
     setUploadedFileType(file.type || 'application/octet-stream');
-    await uploadFile(file);
+    setIsUploading(true);
+    setProgress(5);
+
+    try {
+      const apiBase = resolveApiBaseUrl();
+      const token = localStorage.getItem('bankdata_token');
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+      setProgress(20);
+      const requestUrlRes = await fetch(`${apiBase}/api/storage/uploads/request-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type || 'application/octet-stream',
+        }),
+      });
+
+      const requestUrlData = await requestUrlRes.json().catch(() => ({}));
+      if (!requestUrlRes.ok) {
+        throw new Error(requestUrlData?.error || `Echec preparation upload (${requestUrlRes.status})`);
+      }
+
+      const objectPath = String(requestUrlData?.objectPath || '');
+      const objectId = objectPath.split('/').filter(Boolean).pop();
+      if (!objectId) {
+        throw new Error('objectPath invalide recu du serveur');
+      }
+
+      setProgress(55);
+      const directRes = await fetch(`${apiBase}/api/storage/uploads/direct/${objectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          ...authHeaders,
+        },
+        body: file,
+      });
+
+      if (!directRes.ok) {
+        const directData = await directRes.json().catch(() => ({}));
+        throw new Error(directData?.error || `Echec upload direct (${directRes.status})`);
+      }
+
+      setProgress(100);
+      const fileUrl = `${apiBase}/api/storage${objectPath}`;
+      onChange(fileUrl, {
+        fileName: file.name,
+        fileType: file.type || 'application/octet-stream',
+        fileSize: file.size,
+      });
+
+      toast({ title: 'Fichier uploade', description: `Stocke a ${objectPath}` });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur upload',
+        description: err?.message || 'Echec upload fichier',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+
     e.target.value = '';
   };
 
