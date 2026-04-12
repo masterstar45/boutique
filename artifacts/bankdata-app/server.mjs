@@ -66,9 +66,7 @@ function setSecurityHeaders(res) {
     ].join("; "),
   );
 
-  if (process.env.NODE_ENV === "production") {
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-  }
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 }
 
 function sendFile(res, absolutePath, cacheControl) {
