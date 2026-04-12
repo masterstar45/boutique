@@ -100,6 +100,9 @@ overrides:
   "esbuild>@esbuild/android-arm64": '-'
   # Security: Force patched lodash version (fixes CVE in transitive dependencies)
   "lodash": ">=4.18.0"
+  # Security: Force patched versions for remaining audit findings
+  "path-to-regexp": ">=8.4.0"
+  "@tootallnate/once": ">=3.0.1"
   "esbuild>@esbuild/android-x64": '-'
   "esbuild>@esbuild/openharmony-arm64": '-'
   "lightningcss>lightningcss-android-arm64": "-"
