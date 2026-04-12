@@ -1,9 +1,18 @@
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
+import { Readable } from "node:stream";
 
 const port = Number(process.env.PORT || 8080);
 const host = "0.0.0.0";
+
+function resolveApiBaseUrl() {
+  const raw = (process.env.VITE_API_BASE_URL || "").trim();
+  if (raw) return raw.replace(/\/+$/, "");
+  return "https://api-server-production-823c.up.railway.app";
+}
+
+const apiBaseUrl = resolveApiBaseUrl();
 
 function resolveDistDir() {
   const cwd = process.cwd();
@@ -94,7 +103,7 @@ function resolveSafePath(urlPath) {
   return join(distDir, normalizedPath);
 }
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const method = req.method || "GET";
   if (method !== "GET" && method !== "HEAD") {
     res.statusCode = 405;
@@ -103,6 +112,36 @@ const server = createServer((req, res) => {
   }
 
   const urlPath = req.url || "/";
+
+  // Railway frontend does not natively proxy /api routes.
+  // Proxy image requests so legacy relative URLs keep working.
+  if (urlPath.startsWith("/api/storage/objects/")) {
+    try {
+      const upstream = await fetch(`${apiBaseUrl}${urlPath}`, { method });
+      setSecurityHeaders(res);
+      res.statusCode = upstream.status;
+
+      const contentType = upstream.headers.get("content-type");
+      const contentLength = upstream.headers.get("content-length");
+      const cacheControl = upstream.headers.get("cache-control");
+      if (contentType) res.setHeader("Content-Type", contentType);
+      if (contentLength) res.setHeader("Content-Length", contentLength);
+      if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+
+      if (method === "HEAD" || !upstream.body) {
+        res.end();
+        return;
+      }
+
+      const nodeStream = Readable.fromWeb(upstream.body);
+      nodeStream.pipe(res);
+      return;
+    } catch {
+      res.statusCode = 502;
+      res.end("Bad Gateway");
+      return;
+    }
+  }
 
   if (urlPath === "/healthz") {
     setSecurityHeaders(res);
