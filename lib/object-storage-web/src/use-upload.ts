@@ -251,10 +251,11 @@ export function useUpload(options: UseUploadOptions = {}) {
         console.log("[uploadFile] Progress 30% - uploading to presigned URL");
         setProgress(30);
         try {
-          await uploadToPresignedUrl(file, uploadResponse.uploadURL);
-        } catch (signedErr) {
-          console.warn("[uploadFile] Signed upload failed, retrying with direct upload fallback", signedErr);
+          // Prefer direct API upload for reliability on Railway/browser environments.
           await uploadToDirectApi(file, uploadResponse.objectPath);
+        } catch (directErr) {
+          console.warn("[uploadFile] Direct upload failed, retrying with signed URL", directErr);
+          await uploadToPresignedUrl(file, uploadResponse.uploadURL);
         }
 
         console.log("[uploadFile] Progress 100% - upload complete");
