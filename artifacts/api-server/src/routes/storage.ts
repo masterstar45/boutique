@@ -64,16 +64,21 @@ async function isPublicProductImage(objectPath: string): Promise<boolean> {
  * Requires: JWT authentication (Bearer token)
  */
 router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, res: Response) => {
+  req.log.info({ body: req.body, userId: (req as any).user?.userId, isAdmin: (req as any).user?.isAdmin }, "Upload URL request received");
+  
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Missing or invalid required fields" });
+    req.log.warn({ errors: parsed.error.errors }, "Invalid request body");
+    res.status(400).json({ error: "Missing or invalid required fields", details: parsed.error.errors });
     return;
   }
 
   try {
     const { name, size, contentType } = parsed.data;
+    req.log.info({ name, size, contentType }, "Requesting presigned URL");
 
     const result = await objectStorageService.getObjectEntityUploadURL();
+    req.log.info({ objectPath: result.objectPath }, "Presigned URL generated successfully");
     
     res.json(
       RequestUploadUrlResponse.parse({
@@ -84,7 +89,7 @@ router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, r
     );
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    res.status(500).json({ error: "Failed to generate upload URL", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
