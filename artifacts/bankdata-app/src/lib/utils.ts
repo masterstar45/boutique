@@ -36,6 +36,19 @@ export function formatDate(dateString: string): string {
 export function resolveImageUrl(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
   if (!url.startsWith('/api/')) return url;
-  const base = typeof window !== 'undefined' ? (window as any).__API_BASE_URL : '';
+
+  let base = '';
+  if (typeof window !== 'undefined') {
+    base = String((window as any).__API_BASE_URL || '').replace(/\/+$/, '');
+
+    if (!base) {
+      const host = window.location.hostname;
+      // Railway frontend does not proxy /api/*; force direct API host when missing runtime config.
+      if (host.endsWith('up.railway.app') && host !== 'api-server-production-823c.up.railway.app') {
+        base = 'https://api-server-production-823c.up.railway.app';
+      }
+    }
+  }
+
   return base ? `${base}${url}` : url;
 }
