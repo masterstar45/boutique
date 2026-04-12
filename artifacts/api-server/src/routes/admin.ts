@@ -238,10 +238,27 @@ function serializeProduct(p: any) {
 }
 
 function computeBasePrice(priceOptions: Array<{ label: string; price: string }> | null | undefined): string {
-  if (!priceOptions || priceOptions.length === 0) return "0";
-  const prices = priceOptions.map(o => parseFloat(o.price)).filter(n => !isNaN(n));
-  if (prices.length === 0) return "0";
-  return String(Math.min(...prices));
+  if (!priceOptions || priceOptions.length === 0) return "0.00";
+  const cents = priceOptions
+    .map((o) => String(o.price ?? "").replace(",", ".").trim())
+    .map((raw) => Number.parseFloat(raw))
+    .filter((n) => Number.isFinite(n) && n >= 0)
+    .map((n) => Math.round(n * 100));
+  if (cents.length === 0) return "0.00";
+  return (Math.min(...cents) / 100).toFixed(2);
+}
+
+function normalizePriceOptions(
+  priceOptions: Array<{ label: string; price: string; quantity?: string }> | null | undefined,
+): Array<{ label: string; price: string; quantity?: string }> {
+  return (priceOptions ?? []).map((opt) => {
+    const parsed = Number.parseFloat(String(opt.price ?? "").replace(",", ".").trim());
+    const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+    return {
+      ...opt,
+      price: (Math.round(safe * 100) / 100).toFixed(2),
+    };
+  });
 }
 
 router.get("/admin/stock-debug/:productId", requireAdmin, async (req, res): Promise<void> => {
@@ -308,7 +325,8 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
     return;
   }
 
-  const price = computeBasePrice(priceOptions);
+  const normalizedPriceOptions = normalizePriceOptions(priceOptions);
+  const price = computeBasePrice(normalizedPriceOptions);
 
   let processedFileUrl = fileUrl ?? null;
 
@@ -322,7 +340,7 @@ router.post("/admin/products", requireAdmin, async (req, res): Promise<void> => 
     name,
     description,
     price,
-    priceOptions: priceOptions ?? [],
+    priceOptions: normalizedPriceOptions,
     stock: computedStock,
     fileUrl: processedFileUrl,
     fileName: fileName ?? null,
@@ -354,7 +372,8 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
     return;
   }
 
-  const price = computeBasePrice(priceOptions);
+  const normalizedPriceOptions = normalizePriceOptions(priceOptions);
+  const price = computeBasePrice(normalizedPriceOptions);
 
   let processedFileUrl = fileUrl ?? null;
 
@@ -377,7 +396,7 @@ router.put("/admin/products/:id", requireAdmin, async (req, res): Promise<void> 
 
   const [product] = await db.update(productsTable).set({
     name, description, price,
-    priceOptions: priceOptions ?? [],
+    priceOptions: normalizedPriceOptions,
     stock: parsedStock,
     stockUsed: nextStockUsed,
     fileUrl: processedFileUrl, fileName, fileType, fileSize, categoryId,

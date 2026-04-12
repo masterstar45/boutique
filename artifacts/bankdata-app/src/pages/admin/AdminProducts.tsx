@@ -30,6 +30,13 @@ const EMPTY_FORM = {
   priceOptions: [{ label: '', price: '', quantity: '' }] as PriceOption[],
 };
 
+function normalizePriceInput(raw: string): string {
+  const normalized = String(raw ?? "").replace(",", ".").trim();
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return "0.00";
+  return (Math.round(parsed * 100) / 100).toFixed(2);
+}
+
 function buildTags(productType: string, country: string): string[] {
   const tags: string[] = [];
   if (productType) tags.push(productType);
@@ -337,7 +344,12 @@ export function AdminProducts() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const tags = buildTags(form.productType, form.country);
-    const validOptions = form.priceOptions.filter(o => o.label.trim() && o.price.trim());
+    const validOptions = form.priceOptions
+      .filter(o => o.label.trim() && o.price.trim())
+      .map(o => ({
+        ...o,
+        price: normalizePriceInput(o.price),
+      }));
     if (validOptions.length === 0) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Ajoutez au moins une option de prix complete.' });
       return;
