@@ -5,7 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { initBot, setMiniAppBaseUrl } from "./lib/telegram-bot";
+import { initBot, notifyAdminSecurityEvent, setMiniAppBaseUrl } from "./lib/telegram-bot";
 import { getPublicApiBaseUrl, getPublicMiniAppUrl } from "./lib/public-url";
 
 const app: Express = express();
@@ -80,6 +80,9 @@ app.use(cors({
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
+          void notifyAdminSecurityEvent("CORS origin non autorisee", {
+            origin,
+          });
           callback(null, false);
         }
       }

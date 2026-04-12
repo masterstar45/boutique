@@ -10,6 +10,7 @@ import { eq, or } from "drizzle-orm";
 import { verifyToken } from "../lib/jwt";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAdmin } from "../middlewares/auth";
+import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -108,6 +109,12 @@ router.put("/storage/uploads/direct/:id", requireAdmin, express.raw({ type: '*/*
     const objectId = Array.isArray(objectIdRaw) ? objectIdRaw[0] : objectIdRaw;
     // Validate objectId is a UUID to prevent path traversal
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
+      void notifyAdminSecurityEvent("Tentative upload direct invalide", {
+        route: req.originalUrl,
+        method: req.method,
+        objectId,
+        ip: req.ip,
+      });
       res.status(400).json({ error: "Invalid object ID" });
       return;
     }
@@ -191,6 +198,12 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
       const objectId = parts[parts.length - 1];
       // Validate objectId is a UUID to prevent path traversal
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(objectId)) {
+        void notifyAdminSecurityEvent("Tentative path traversal stockage", {
+          route: req.originalUrl,
+          method: req.method,
+          wildcardPath,
+          ip: req.ip,
+        });
         res.status(400).json({ error: "Invalid object path" });
         return;
       }
