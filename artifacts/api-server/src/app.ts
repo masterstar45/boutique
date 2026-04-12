@@ -84,9 +84,9 @@ app.use(cors({
 // Middleware to capture raw body for HMAC verification
 app.use(express.json({
   limit: "10mb",
-  verify: (req: any, res, buf, encoding) => {
+  verify: (req: any, res: any, buf: Buffer, encoding: any) => {
     // Store the raw body for HMAC verification
-    req.rawBody = buf.toString(encoding || "utf8");
+    req.rawBody = buf.toString(encoding ?? "utf8");
   },
 }));
 app.use(express.urlencoded({ extended: true }));

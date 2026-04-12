@@ -69,11 +69,21 @@ export function useUpload(options: UseUploadOptions = {}) {
       return url;
     }
 
-    // Priority 3: Fallback to Railway domain detection
-    if (typeof window !== "undefined" && window.location.hostname.endsWith("up.railway.app")) {
-      const url = "https://api-server-production-823c.up.railway.app";
-      console.log("[useUpload] Using Railway fallback URL:", url);
-      return url;
+    // Priority 3: Check if we're in a Telegram WebApp context (mini app)
+    if (typeof window !== "undefined" && (window as any).Telegram?.WebApp) {
+      // For Telegram WebApp, assume API is on same origin or use relative path
+      console.log("[useUpload] Detected Telegram WebApp, using relative path");
+      return "";
+    }
+
+    // Priority 4: Use current window origin if not localhost (production fallback)
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && !window.location.hostname.startsWith("127.")) {
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const port = window.location.port ? `:${window.location.port}` : "";
+      const origin = `${protocol}//${hostname}${port}`;
+      console.log("[useUpload] Using current window origin:", origin);
+      return origin;
     }
 
     console.warn("[useUpload] No API base URL detected, will use relative path");
