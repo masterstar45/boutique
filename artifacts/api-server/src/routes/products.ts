@@ -2,8 +2,21 @@ import { Router, type IRouter } from "express";
 import { db, productsTable, categoriesTable } from "@workspace/db";
 import { eq, and, ilike, sql } from "drizzle-orm";
 import { getRubriqueCountries, isValidRubrique } from "../lib/rubriqueCountries";
+import { getPublicApiBaseUrl } from "../lib/public-url";
 
 const router: IRouter = Router();
+
+function normalizeProductImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+
+  const trimmed = imageUrl.trim();
+  if (!trimmed.startsWith("/")) return trimmed;
+
+  const base = (getPublicApiBaseUrl() || "").replace(/\/+$/, "");
+  if (!base) return trimmed;
+  return `${base}${trimmed}`;
+}
 
 router.get("/rubriques/:rubrique/countries", async (req, res): Promise<void> => {
   const rubriqueRaw = String(req.params.rubrique || "").trim().toLowerCase();
@@ -60,7 +73,7 @@ router.get("/products", async (req, res): Promise<void> => {
       name: p.name,
       description: p.description,
       price: p.price,
-      imageUrl: p.imageUrl,
+      imageUrl: normalizeProductImageUrl(p.imageUrl),
       categoryId: p.categoryId,
       tags: p.tags ?? [],
       isActive: p.isActive,
@@ -96,7 +109,7 @@ router.get("/products/:id", async (req, res): Promise<void> => {
     name: product.name,
     description: product.description,
     price: product.price,
-    imageUrl: product.imageUrl,
+    imageUrl: normalizeProductImageUrl(product.imageUrl),
     categoryId: product.categoryId,
     tags: product.tags ?? [],
     isActive: product.isActive,
