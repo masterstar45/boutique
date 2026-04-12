@@ -655,6 +655,7 @@ export function AdminProducts() {
                           title="Nombre de LIGNES que le client recoit (pas le stock total !)"
                           value={opt.quantity}
                           onChange={e => updatePriceOption(idx, 'quantity', e.target.value)}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           className="w-24 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                         />
                         <input
@@ -664,6 +665,7 @@ export function AdminProducts() {
                           placeholder="Prix"
                           value={opt.price}
                           onChange={e => updatePriceOption(idx, 'price', e.target.value)}
+                          onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                           className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                         />
                         <button
@@ -691,6 +693,7 @@ export function AdminProducts() {
                     min="0"
                     value={form.stock}
                     onChange={e => setForm({ ...form, stock: e.target.value })}
+                    onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
                     className="w-44 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/15 focus:outline-none focus:border-white/[0.15] transition-colors"
                     placeholder="ex: 25000"
                   />
