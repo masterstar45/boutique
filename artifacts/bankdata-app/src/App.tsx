@@ -101,6 +101,11 @@ function AdminRoute({ component: Component }: { component: any }) {
   const { isAdmin, isLoading, token, refreshUser } = useAuth();
   const [, setLocation] = useLocation();
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
+  const [hasValidatedAdminSession, setHasValidatedAdminSession] = useState(false);
+
+  useEffect(() => {
+    setHasValidatedAdminSession(false);
+  }, [token]);
 
   useEffect(() => {
     if (isLoading || !token || isCheckingAdmin) return;
@@ -108,7 +113,10 @@ function AdminRoute({ component: Component }: { component: any }) {
     setIsCheckingAdmin(true);
     refreshUser()
       .finally(() => {
-        if (mounted) setIsCheckingAdmin(false);
+        if (mounted) {
+          setIsCheckingAdmin(false);
+          setHasValidatedAdminSession(true);
+        }
       });
     return () => {
       mounted = false;
@@ -116,12 +124,14 @@ function AdminRoute({ component: Component }: { component: any }) {
   }, [isLoading, isAdmin, token, isCheckingAdmin, refreshUser]);
 
   useEffect(() => {
-    if (!isLoading && !isCheckingAdmin && !isAdmin) {
+    if (!isLoading && hasValidatedAdminSession && !isCheckingAdmin && !isAdmin) {
       setLocation('/');
     }
-  }, [isAdmin, isLoading, isCheckingAdmin, setLocation]);
+  }, [hasValidatedAdminSession, isAdmin, isLoading, isCheckingAdmin, setLocation]);
 
-  if (isLoading || isCheckingAdmin || !isAdmin) return <div className="min-h-screen bg-background" />;
+  if (isLoading || isCheckingAdmin || !hasValidatedAdminSession || !isAdmin) {
+    return <div className="min-h-screen bg-background" />;
+  }
   
   return <Component />;
 }

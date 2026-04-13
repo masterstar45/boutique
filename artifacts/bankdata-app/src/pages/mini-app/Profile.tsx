@@ -37,6 +37,10 @@ export function Profile() {
     return () => clearPolling();
   }, []);
 
+  useEffect(() => {
+    void refreshUser?.();
+  }, [refreshUser]);
+
   const openModal = () => {
     setAmount('25');
     setDepositState({ step: 'form' });
