@@ -214,10 +214,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           console.error('Token validation failed:', err);
           if (storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-            setIsLoading(false);
-            return;
+            try {
+              const cachedUser = JSON.parse(storedUser);
+              // Never trust cached admin role when validation is unavailable.
+              setToken(storedToken);
+              setUser({ ...cachedUser, isAdmin: false });
+              setIsLoading(false);
+              return;
+            } catch {
+              localStorage.removeItem('bankdata_user');
+            }
           }
         }
       }
@@ -254,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       return null;
     } catch {
+      setUser((current) => (current ? { ...current, isAdmin: false } : null));
       return null;
     }
   };
