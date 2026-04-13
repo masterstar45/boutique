@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -98,39 +98,16 @@ const queryClient = new QueryClient({
 });
 
 function AdminRoute({ component: Component }: { component: any }) {
-  const { isAdmin, isLoading, token, refreshUser } = useAuth();
+  const { isAdmin, isLoading, token } = useAuth();
   const [, setLocation] = useLocation();
-  const [hasValidatedAdminSession, setHasValidatedAdminSession] = useState(false);
-  const validationInitiatedRef = useRef(false);
 
   useEffect(() => {
-    setHasValidatedAdminSession(false);
-    validationInitiatedRef.current = false;
-  }, [token]);
-
-  useEffect(() => {
-    if (isLoading || !token || validationInitiatedRef.current) return;
-    let mounted = true;
-    validationInitiatedRef.current = true;
-    
-    refreshUser()
-      .finally(() => {
-        if (mounted) {
-          setHasValidatedAdminSession(true);
-        }
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [isLoading, token, refreshUser]);
-
-  useEffect(() => {
-    if (!isLoading && hasValidatedAdminSession && !isAdmin && token) {
+    if (!isLoading && !isAdmin && token) {
       setLocation('/');
     }
-  }, [hasValidatedAdminSession, isAdmin, isLoading, token, setLocation]);
+  }, [isLoading, isAdmin, token, setLocation]);
 
-  if (isLoading || !hasValidatedAdminSession || !isAdmin) {
+  if (isLoading || !isAdmin) {
     return <div className="min-h-screen bg-background" />;
   }
   
