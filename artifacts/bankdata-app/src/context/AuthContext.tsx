@@ -8,7 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   logout: () => void;
   isAdmin: boolean;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<UserProfile | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   logout: () => {},
   isAdmin: false,
-  refreshUser: async () => {},
+  refreshUser: async () => null,
 });
 
 type TelegramLikeUser = {
@@ -152,22 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { initData, tgUser } = telegramContext;
         const turnstileToken = sessionStorage.getItem('bankdata_turnstile_token') || '';
 
-        // Keep existing session if present (helps admin panel paths while Telegram auth refreshes)
-        const storedUserRaw = localStorage.getItem('bankdata_user');
-        const storedToken = localStorage.getItem('bankdata_token');
-        if (storedUserRaw && storedToken) {
-          try {
-            const parsedStoredUser = JSON.parse(storedUserRaw);
-            setToken(storedToken);
-            setUser(parsedStoredUser);
-          } catch {
-            const provisionalUser = buildProvisionalUser(tgUser);
-            setUser(provisionalUser);
-          }
-        } else {
-          const provisionalUser = buildProvisionalUser(tgUser);
-          setUser(provisionalUser);
-        }
+        const provisionalUser = buildProvisionalUser(tgUser);
+        setUser(provisionalUser);
 
         try {
           const response = await telegramAuth.mutateAsync({
@@ -191,6 +177,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(newUser);
         } catch (err) {
           console.error("Telegram auth failed:", err);
+          localStorage.removeItem('bankdata_token');
+          localStorage.removeItem('bankdata_user');
+          sessionStorage.removeItem('bankdata_turnstile_token');
+          sessionStorage.removeItem('bankdata_turnstile_verified');
+          sessionStorage.removeItem('bankdata_turnstile_verified_at');
+          window.dispatchEvent(new Event('bankdata:turnstile-reset'));
+          setToken(null);
+          setUser(null);
         } finally {
           setIsLoading(false);
         }
@@ -235,9 +229,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<UserProfile | null> => {
     const storedToken = localStorage.getItem('bankdata_token');
-    if (!storedToken) return;
+    if (!storedToken) {
+      setToken(null);
+      setUser(null);
+      return null;
+    }
+
     try {
       const res = await fetch('/api/users/me', {
         headers: { Authorization: `Bearer ${storedToken}` }
@@ -245,9 +244,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const freshUser = await res.json();
         localStorage.setItem('bankdata_user', JSON.stringify(freshUser));
+        setToken(storedToken);
         setUser(freshUser);
+        return freshUser;
       }
-    } catch {}
+      localStorage.removeItem('bankdata_token');
+      localStorage.removeItem('bankdata_user');
+      setToken(null);
+      setUser(null);
+      return null;
+    } catch {
+      return null;
+    }
   };
 
   const logout = () => {

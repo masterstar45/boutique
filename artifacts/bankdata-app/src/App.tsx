@@ -31,6 +31,27 @@ import { AdminBotButtons } from "@/pages/admin/AdminBotButtons";
 
 import NotFound from "@/pages/not-found";
 
+const TURNSTILE_MAX_AGE_MS = 4 * 60 * 1000;
+
+function hasFreshTurnstileVerification(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const verified = sessionStorage.getItem("bankdata_turnstile_verified") === "1";
+  const token = sessionStorage.getItem("bankdata_turnstile_token") || "";
+  const verifiedAt = Number(sessionStorage.getItem("bankdata_turnstile_verified_at") || "0");
+
+  if (!verified || !token) return false;
+  if (!Number.isFinite(verifiedAt) || verifiedAt <= 0) return false;
+  return Date.now() - verifiedAt < TURNSTILE_MAX_AGE_MS;
+}
+
+function resetTurnstileVerification(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem("bankdata_turnstile_token");
+  sessionStorage.removeItem("bankdata_turnstile_verified");
+  sessionStorage.removeItem("bankdata_turnstile_verified_at");
+}
+
 // Global API Interceptor for Bearer Token
 const originalFetch = window.fetch;
 const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)
@@ -82,11 +103,10 @@ function AdminRoute({ component: Component }: { component: any }) {
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
 
   useEffect(() => {
-    if (isLoading || isAdmin || !token || isCheckingAdmin) return;
+    if (isLoading || !token || isCheckingAdmin) return;
     let mounted = true;
     setIsCheckingAdmin(true);
     refreshUser()
-      .catch(() => {})
       .finally(() => {
         if (mounted) setIsCheckingAdmin(false);
       });
@@ -272,10 +292,17 @@ function MainApp() {
 }
 
 function VerificationGate({ children }: { children: React.ReactNode }) {
-  const [isVerified, setIsVerified] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return sessionStorage.getItem("bankdata_turnstile_verified") === "1";
-  });
+  const [isVerified, setIsVerified] = useState<boolean>(() => hasFreshTurnstileVerification());
+
+  useEffect(() => {
+    const handleReset = () => {
+      resetTurnstileVerification();
+      setIsVerified(false);
+    };
+
+    window.addEventListener("bankdata:turnstile-reset", handleReset);
+    return () => window.removeEventListener("bankdata:turnstile-reset", handleReset);
+  }, []);
 
   if (!isVerified) {
     return (
@@ -283,6 +310,7 @@ function VerificationGate({ children }: { children: React.ReactNode }) {
         onVerified={(token) => {
           sessionStorage.setItem("bankdata_turnstile_token", token);
           sessionStorage.setItem("bankdata_turnstile_verified", "1");
+          sessionStorage.setItem("bankdata_turnstile_verified_at", String(Date.now()));
           setIsVerified(true);
         }}
         onError={(err) => {

@@ -25,14 +25,17 @@ function useAdmins() {
       const res = await fetch('/api/admin/admins', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Erreur chargement admins');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Erreur chargement admins');
+      }
       return res.json();
     },
   });
 }
 
 export function AdminAdmins() {
-  const { data, isLoading } = useAdmins();
+  const { data, isLoading, error } = useAdmins();
   const admins = data?.admins || [];
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -239,6 +242,14 @@ export function AdminAdmins() {
               {isLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <Loader2 className="w-4 h-4 animate-spin text-white/20" />
+                </div>
+              ) : error ? (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/8 border border-rose-500/15">
+                  <X className="w-4 h-4 text-rose-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-white">Chargement impossible</p>
+                    <p className="text-[11px] text-white/40 mt-0.5">{error instanceof Error ? error.message : 'Erreur inconnue'}</p>
+                  </div>
                 </div>
               ) : admins.length === 0 ? (
                 <p className="text-[11px] text-white/20 py-4 text-center">Aucun admin</p>
