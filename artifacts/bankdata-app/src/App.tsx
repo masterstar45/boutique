@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -100,36 +100,37 @@ const queryClient = new QueryClient({
 function AdminRoute({ component: Component }: { component: any }) {
   const { isAdmin, isLoading, token, refreshUser } = useAuth();
   const [, setLocation] = useLocation();
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
   const [hasValidatedAdminSession, setHasValidatedAdminSession] = useState(false);
+  const validationInitiatedRef = useRef(false);
 
   useEffect(() => {
     setHasValidatedAdminSession(false);
+    validationInitiatedRef.current = false;
   }, [token]);
 
   useEffect(() => {
-    if (isLoading || !token || isCheckingAdmin) return;
+    if (isLoading || !token || validationInitiatedRef.current) return;
     let mounted = true;
-    setIsCheckingAdmin(true);
+    validationInitiatedRef.current = true;
+    
     refreshUser()
       .finally(() => {
         if (mounted) {
-          setIsCheckingAdmin(false);
           setHasValidatedAdminSession(true);
         }
       });
     return () => {
       mounted = false;
     };
-  }, [isLoading, isAdmin, token, isCheckingAdmin, refreshUser]);
+  }, [isLoading, token, refreshUser]);
 
   useEffect(() => {
-    if (!isLoading && hasValidatedAdminSession && !isCheckingAdmin && !isAdmin) {
+    if (!isLoading && hasValidatedAdminSession && !isAdmin && token) {
       setLocation('/');
     }
-  }, [hasValidatedAdminSession, isAdmin, isLoading, isCheckingAdmin, setLocation]);
+  }, [hasValidatedAdminSession, isAdmin, isLoading, token, setLocation]);
 
-  if (isLoading || isCheckingAdmin || !hasValidatedAdminSession || !isAdmin) {
+  if (isLoading || !hasValidatedAdminSession || !isAdmin) {
     return <div className="min-h-screen bg-background" />;
   }
   
