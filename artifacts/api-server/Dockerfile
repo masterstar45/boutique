@@ -1,7 +1,7 @@
 FROM node:22 AS base
 
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.json ./
 COPY artifacts/api-server/package.json artifacts/api-server/package.json
