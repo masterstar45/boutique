@@ -1,0 +1,1 @@
+ALTER TABLE "bot_buttons" ADD COLUMN "row" integer DEFAULT 0 NOT NULL;

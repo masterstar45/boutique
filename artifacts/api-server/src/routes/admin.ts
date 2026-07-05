@@ -3,7 +3,7 @@ import { db, productsTable, ordersTable, orderItemsTable, usersTable, promoCodes
 import { eq, desc, sql, and, gte, asc } from "drizzle-orm";
 import { requireAdmin } from "../middlewares/auth";
 import { sendAdminCreditNotification } from "../lib/telegram-bot";
-import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
+import { notifyAdminSecurityEvent, reregisterWebhook } from "../lib/telegram-bot";
 import { getAllRubriqueCountries, isValidRubrique, setRubriqueCountries } from "../lib/rubriqueCountries";
 import { ObjectStorageService } from "../lib/objectStorage";
 import { convertToFicheFormat } from "../lib/fiche-converter";
@@ -930,6 +930,16 @@ router.delete("/admin/bot-buttons/:id", requireAdmin, async (req, res): Promise<
     return;
   }
   res.sendStatus(204);
+});
+
+// Re-register the Telegram webhook on demand (no redeploy needed).
+router.post("/admin/telegram/rewebhook", requireAdmin, async (_req, res): Promise<void> => {
+  const ok = await reregisterWebhook();
+  if (ok) {
+    res.json({ success: true });
+  } else {
+    res.status(502).json({ error: "Échec du ré-enregistrement du webhook (bot désactivé ou URL publique manquante)" });
+  }
 });
 
 export default router;

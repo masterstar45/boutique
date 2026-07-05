@@ -32,6 +32,36 @@ export function setMiniAppBaseUrl(url: string): void {
   miniAppBaseUrl = url;
 }
 
+let webhookTargetUrl: string | null = null;
+
+/**
+ * Register the Telegram webhook with retries. The previous implementation
+ * called setWebHook() without awaiting or catching errors, so a transient
+ * failure left the bot unreachable until the next restart.
+ */
+async function registerWebhookWithRetry(fullUrl: string, attempts = 5): Promise<boolean> {
+  if (!bot) return false;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await bot.setWebHook(fullUrl);
+      logger.info({ fullUrl, attempt }, "Telegram webhook registered");
+      return true;
+    } catch (err) {
+      logger.warn({ err, fullUrl, attempt, attempts }, "Failed to register Telegram webhook — retrying");
+      await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** (attempt - 1), 15000)));
+    }
+  }
+  logger.error({ fullUrl, attempts }, "Gave up registering Telegram webhook after retries");
+  void notifyAdminSecurityEvent("Webhook Telegram non enregistre", { fullUrl, attempts });
+  return false;
+}
+
+/** Re-register the webhook on demand (used by the admin endpoint). */
+export async function reregisterWebhook(): Promise<boolean> {
+  if (!bot || !webhookTargetUrl) return false;
+  return registerWebhookWithRetry(webhookTargetUrl);
+}
+
 export function initBot(webhookUrl?: string): TelegramBot | null {
   if (!BOT_TOKEN) {
     logger.warn("TELEGRAM_BOT_TOKEN not set — bot disabled");
@@ -39,9 +69,10 @@ export function initBot(webhookUrl?: string): TelegramBot | null {
   }
 
   if (webhookUrl) {
+    webhookTargetUrl = `${webhookUrl}/api/telegram-webhook`;
     bot = new TelegramBot(BOT_TOKEN, { webHook: { port: 0 } });
-    bot.setWebHook(`${webhookUrl}/api/telegram-webhook`);
     logger.info({ webhookUrl }, "Telegram bot initialized with webhook");
+    void registerWebhookWithRetry(webhookTargetUrl);
   } else {
     bot = new TelegramBot(BOT_TOKEN, { polling: false });
     logger.info("Telegram bot initialized (no webhook)");
