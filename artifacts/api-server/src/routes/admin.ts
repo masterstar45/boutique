@@ -250,7 +250,7 @@ function computeBasePrice(priceOptions: Array<{ label: string; price: string }> 
 
 function normalizePriceOptions(
   priceOptions: Array<{ label: string; price: string; quantity?: string }> | null | undefined,
-): Array<{ label: string; price: string; quantity?: string }> {
+): Array<{ label: string; price: string; quantity: string }> {
   return (priceOptions ?? []).map((opt) => {
     const parsed = Number.parseFloat(String(opt.price ?? "").replace(",", ".").trim());
     const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;

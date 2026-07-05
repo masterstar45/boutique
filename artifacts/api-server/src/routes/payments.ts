@@ -319,7 +319,11 @@ async function extractStockLines(
  *   Phase 3 — Telegram delivery with retry
  *   Phase 4 — Confirm sale OR rollback reservation
  */
-async function processConfirmedPayment(orderId: number, paymentId: number): Promise<void> {
+async function processConfirmedPayment(
+  orderId: number,
+  paymentId: number,
+  paidFromBalance: boolean = false,
+): Promise<void> {
   const order = await db.select().from(ordersTable).where(eq(ordersTable.id, orderId)).then(r => r[0]);
   if (!order) return;
 
@@ -401,6 +405,8 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
     await client.query("ROLLBACK");
     logger.error({ err: txErr, orderId }, "Phase 1 — ROLLBACK, stock reservation failed");
     await db.update(ordersTable).set({ status: "failed" }).where(eq(ordersTable.id, orderId));
+    // Balance was already debited in pay-with-balance — refund it since the sale did not happen.
+    if (paidFromBalance) await refundOrderBalance(order, paymentId);
     return; // Stop here — nothing was consumed
   } finally {
     client.release();
@@ -484,14 +490,14 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
     }
   } catch (extractErr) {
     logger.error({ err: extractErr, orderId }, "Phase 2 — File extraction failed, rolling back stock");
-    await cancelReservation(reservations, orderId);
+    await cancelReservation(reservations, order, paidFromBalance, paymentId);
     return;
   }
 
   // If we expected files but none could be extracted, rollback immediately
   if (expectedFileCount > 0 && fileDeliveryBuffers.length === 0) {
     logger.error({ orderId, expectedFileCount }, "Phase 2 — All file extractions failed, rolling back reservation");
-    await cancelReservation(reservations, orderId);
+    await cancelReservation(reservations, order, paidFromBalance, paymentId);
     return;
   }
 
@@ -554,7 +560,7 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
     }
   } else {
     logger.warn({ orderId }, "Phase 4 — Delivery failed, rolling back reservation");
-    await cancelReservation(reservations, orderId);
+    await cancelReservation(reservations, order, paidFromBalance, paymentId);
 
     // Notify admin of failed delivery
     if (user) {
@@ -572,13 +578,43 @@ async function processConfirmedPayment(orderId: number, paymentId: number): Prom
 }
 
 /**
+ * Refund a balance-paid order whose delivery ultimately failed.
+ * Credits the debited amount back to the user and marks the payment as refunded.
+ */
+async function refundOrderBalance(
+  order: { id: number; userId: number; amount: string },
+  paymentId: number,
+): Promise<void> {
+  try {
+    await db.update(usersTable)
+      .set({ balance: sql`${usersTable.balance} + ${order.amount}` })
+      .where(eq(usersTable.id, order.userId));
+
+    await db.update(paymentsTable)
+      .set({ status: "refunded" })
+      .where(eq(paymentsTable.id, paymentId));
+
+    logger.warn(
+      { orderId: order.id, userId: order.userId, amount: order.amount, paymentId },
+      "Balance refunded after failed delivery",
+    );
+  } catch (err) {
+    logger.error({ err, orderId: order.id, paymentId }, "Balance refund failed — manual intervention needed");
+  }
+}
+
+/**
  * Rollback: revert stockUsed to previous values and mark order as failed.
  * This restores the reserved stock so other buyers can purchase it.
+ * If the order was paid from balance, the debited amount is refunded.
  */
 async function cancelReservation(
   reservations: Array<{ productId: number; recordsConsumed: number; previousStockUsed: number }>,
-  orderId: number,
+  order: { id: number; userId: number; amount: string },
+  paidFromBalance: boolean,
+  paymentId: number,
 ): Promise<void> {
+  const orderId = order.id;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -604,6 +640,8 @@ async function cancelReservation(
   } finally {
     client.release();
   }
+
+  if (paidFromBalance) await refundOrderBalance(order, paymentId);
 }
 
 router.post("/payments/pay-with-balance", requireAuth, async (req, res): Promise<void> => {
@@ -688,7 +726,7 @@ router.post("/payments/pay-with-balance", requireAuth, async (req, res): Promise
     client.release();
   }
 
-  await processConfirmedPayment(orderId, createdPaymentId!);
+  await processConfirmedPayment(orderId, createdPaymentId!, true);
 
   res.json({ success: true, paymentId: createdPaymentId });
 });
