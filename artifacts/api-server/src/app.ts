@@ -12,6 +12,13 @@ const app: Express = express();
 
 app.disable("x-powered-by");
 
+// Trust the reverse proxy in front of the app (Railway edge = 1 hop by
+// default) so req.ip is the real client and not spoofable via a forged
+// X-Forwarded-For left entry. Tune with TRUST_PROXY_HOPS if your platform
+// adds more hops.
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 1);
+app.set("trust proxy", Number.isFinite(trustProxyHops) ? trustProxyHops : 1);
+
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");

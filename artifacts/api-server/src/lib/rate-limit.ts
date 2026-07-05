@@ -72,10 +72,13 @@ function consumeMemoryBucket(key: string, windowMs: number, now: number): Bucket
 }
 
 function getClientIp(req: Request): string {
+  // With `trust proxy` configured, req.ip is the real client resolved from the
+  // trusted X-Forwarded-For hop and cannot be spoofed by a forged left entry.
+  if (req.ip) return req.ip;
   const fwd = req.headers["x-forwarded-for"];
   if (Array.isArray(fwd) && fwd.length > 0) return String(fwd[0]).split(",")[0].trim();
   if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0].trim();
-  return req.ip || "unknown";
+  return "unknown";
 }
 
 export function createRateLimiter(options: RateLimitOptions) {

@@ -6,7 +6,7 @@ import { processConfirmedPayment } from "./payments";
 import { processConfirmedDeposit } from "./deposits";
 import { verifyWebhookSignature } from "../lib/oxapay";
 import { logger } from "../lib/logger";
-import { getPublicMiniAppUrl } from "../lib/public-url";
+import { getPublicMiniAppUrl, getPublicApiBaseUrl } from "../lib/public-url";
 import { notifyAdminSecurityEvent } from "../lib/telegram-bot";
 
 const router: IRouter = Router();
@@ -64,15 +64,16 @@ router.post("/telegram-webhook", async (req, res): Promise<void> => {
       .where(eq(usersTable.telegramId, telegramId))
       .then(r => r[0]);
 
-    // Fetch Telegram profile photo
+    // Fetch Telegram profile photo — store a token-free proxy URL (the bot
+    // token must never be embedded in a client-visible URL).
     let photoUrl: string | null = null;
     try {
       const photos = await bot.getUserProfilePhotos(from.id, { limit: 1 });
       if (photos.total_count > 0) {
         const fileId = photos.photos[0][0].file_id;
-        const file = await bot.getFile(fileId);
-        if (file.file_path) {
-          photoUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+        const base = (getPublicApiBaseUrl() || "").replace(/\/+$/, "");
+        if (base) {
+          photoUrl = `${base}/api/telegram-photo/${encodeURIComponent(fileId)}`;
         }
       }
     } catch (err) {

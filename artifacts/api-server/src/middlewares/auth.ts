@@ -69,11 +69,14 @@ function getRejectionAlertThreshold(reason: string, path: string): number {
 }
 
 function getClientIp(req: Request): string {
+  // Prefer req.ip (resolved via `trust proxy`) — not spoofable via a forged
+  // X-Forwarded-For left entry, unlike reading the raw header directly.
+  if (req.ip) return req.ip;
   const forwarded = req.headers["x-forwarded-for"];
   if (typeof forwarded === "string" && forwarded.length > 0) {
     return forwarded.split(",")[0]!.trim();
   }
-  return req.ip || "unknown";
+  return "unknown";
 }
 
 function trackSecurityRejection(req: Request, reason: string): void {

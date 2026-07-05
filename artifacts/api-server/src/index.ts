@@ -57,6 +57,19 @@ async function ensureRateLimitTable() {
   }
 }
 
+async function scrubLeakedPhotoUrls() {
+  try {
+    const result = await pool.query(
+      `UPDATE users SET photo_url = NULL WHERE photo_url LIKE '%api.telegram.org/file/bot%'`,
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      logger.warn({ count: result.rowCount }, "Scrubbed bot-token-bearing photo URLs from users");
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to scrub leaked photo URLs (non-fatal)");
+  }
+}
+
 async function logDatabaseStatus() {
   try {
     const result = await pool.query(`
@@ -94,6 +107,7 @@ enforceProductionSecurityConfig();
 
 ensureFileStorageTable()
   .then(() => ensureRateLimitTable())
+  .then(() => scrubLeakedPhotoUrls())
   .then(() => logDatabaseStatus())
   .then(() => {
   app.listen(port, (err) => {

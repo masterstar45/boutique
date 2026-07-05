@@ -11,6 +11,7 @@ import promoRouter from "./promo";
 import adminRouter from "./admin";
 import webhooksRouter from "./webhooks";
 import storageRouter from "./storage";
+import telegramPhotoRouter from "./telegram-photo";
 import { createRateLimiter } from "../lib/rate-limit";
 
 const router: IRouter = Router();
@@ -42,5 +43,6 @@ router.use(promoRouter);
 router.use(adminRouter);
 router.use(webhooksRouter);
 router.use(storageRouter);
+router.use(telegramPhotoRouter);
 
 export default router;
