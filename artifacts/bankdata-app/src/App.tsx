@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,16 +18,16 @@ import { Payment } from "@/pages/mini-app/Payment";
 import { Profile } from "@/pages/mini-app/Profile";
 import { Contact } from "@/pages/mini-app/Contact";
 
-// Admin Pages
-import { AdminDashboard } from "@/pages/admin/AdminDashboard";
-import { AdminProducts } from "@/pages/admin/AdminProducts";
-import { AdminOrders } from "@/pages/admin/AdminOrders";
-import { AdminUsers } from "@/pages/admin/AdminUsers";
-import { AdminPromo } from "@/pages/admin/AdminPromo";
-import { AdminAdmins } from "@/pages/admin/AdminAdmins";
-import { AdminAffiliation } from "@/pages/admin/AdminAffiliation";
-import { AdminRubriqueCountries } from "@/pages/admin/AdminRubriqueCountries";
-import { AdminBotButtons } from "@/pages/admin/AdminBotButtons";
+// Admin Pages — lazy-loaded so the storefront bundle stays small
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard").then(m => ({ default: m.AdminDashboard })));
+const AdminProducts = lazy(() => import("@/pages/admin/AdminProducts").then(m => ({ default: m.AdminProducts })));
+const AdminOrders = lazy(() => import("@/pages/admin/AdminOrders").then(m => ({ default: m.AdminOrders })));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers").then(m => ({ default: m.AdminUsers })));
+const AdminPromo = lazy(() => import("@/pages/admin/AdminPromo").then(m => ({ default: m.AdminPromo })));
+const AdminAdmins = lazy(() => import("@/pages/admin/AdminAdmins").then(m => ({ default: m.AdminAdmins })));
+const AdminAffiliation = lazy(() => import("@/pages/admin/AdminAffiliation").then(m => ({ default: m.AdminAffiliation })));
+const AdminRubriqueCountries = lazy(() => import("@/pages/admin/AdminRubriqueCountries").then(m => ({ default: m.AdminRubriqueCountries })));
+const AdminBotButtons = lazy(() => import("@/pages/admin/AdminBotButtons").then(m => ({ default: m.AdminBotButtons })));
 
 import NotFound from "@/pages/not-found";
 
@@ -110,8 +110,12 @@ function AdminRoute({ component: Component }: { component: any }) {
   if (isLoading || !isAdmin) {
     return <div className="min-h-screen bg-background" />;
   }
-  
-  return <Component />;
+
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <Component />
+    </Suspense>
+  );
 }
 
 function TelegramGate() {
