@@ -17,13 +17,13 @@ export function TelegramGate() {
           className="w-20 h-20 rounded-full flex items-center justify-center"
           style={{ background: 'rgba(234,179,8,0.12)', border: '1.5px solid rgba(234,179,8,0.25)' }}
         >
-          <Send className="w-9 h-9" style={{ color: '#eab308' }} />
+          <Send className="w-9 h-9" style={{ color: 'var(--gold)' }} />
         </div>
 
         <div className="flex flex-col gap-2">
           <h1
             className="text-2xl font-black tracking-wide"
-            style={{ color: '#eab308' }}
+            style={{ color: 'var(--gold)' }}
           >
             BANK$DATA
           </h1>
@@ -38,7 +38,7 @@ export function TelegramGate() {
           rel="noopener noreferrer"
           className="px-6 py-3 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
           style={{
-            background: 'linear-gradient(135deg, #ca8a04, #eab308)',
+            background: 'linear-gradient(135deg, var(--gold-dark), var(--gold))',
             color: '#000',
           }}
         >

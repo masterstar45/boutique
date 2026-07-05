@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { MiniAppLayout } from '@/components/layout/MiniAppLayout';
@@ -14,7 +15,7 @@ function usePayWithBalance() {
   return useMutation({
     mutationFn: async (orderId: number) => {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch('/api/payments/pay-with-balance', {
+      const res = await apiFetch('/api/payments/pay-with-balance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniAppLayout } from '@/components/layout/MiniAppLayout';
@@ -60,7 +61,7 @@ export function BoutiqueType({ params }: { params: { type: string } }) {
     let active = true;
     const loadAllowedCountries = async () => {
       try {
-        const res = await fetch(`/api/rubriques/${typeKey}/countries`);
+        const res = await apiFetch(`/api/rubriques/${typeKey}/countries`);
         const data = await res.json();
         if (!active) return;
         if (res.ok && Array.isArray(data?.countries)) {

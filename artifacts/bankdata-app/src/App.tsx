@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BotVerification } from "@/components/BotVerification";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FullScreenLoader } from "@/components/FullScreenLoader";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
@@ -52,40 +54,6 @@ function resetTurnstileVerification(): void {
   sessionStorage.removeItem("bankdata_turnstile_verified_at");
 }
 
-// Global API Interceptor for Bearer Token
-const originalFetch = window.fetch;
-const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)
-  ?.trim() ?? "";
-
-const runtimeFallbackApiBaseUrl =
-  typeof window !== "undefined" && window.location.hostname.endsWith("up.railway.app")
-    ? "https://api-server-production-823c.up.railway.app"
-    : "";
-
-const apiBaseUrl = (envApiBaseUrl || runtimeFallbackApiBaseUrl).replace(/\/+$/, "");
-
-window.fetch = async (input, init) => {
-  let nextInput: RequestInfo | URL = input;
-  const absoluteApiPrefix = apiBaseUrl ? `${apiBaseUrl}/api` : "";
-
-  if (typeof input === 'string' && input.startsWith('/api') && apiBaseUrl) {
-    nextInput = `${apiBaseUrl}${input}`;
-  }
-
-  const isRelativeApi = typeof input === 'string' && input.startsWith('/api');
-  const isAbsoluteApi = typeof input === 'string' && absoluteApiPrefix !== '' && input.startsWith(absoluteApiPrefix);
-
-  if (isRelativeApi || isAbsoluteApi) {
-    const token = localStorage.getItem('bankdata_token');
-    if (token) {
-      const existing = new Headers(init?.headers);
-      existing.set('Authorization', `Bearer ${token}`);
-      init = { ...(init || {}), headers: existing };
-    }
-  }
-  return originalFetch(nextInput, init);
-};
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -108,11 +76,11 @@ function AdminRoute({ component: Component }: { component: any }) {
   }, [isLoading, isAdmin, token, setLocation]);
 
   if (isLoading || !isAdmin) {
-    return <div className="min-h-screen bg-background" />;
+    return <FullScreenLoader />;
   }
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense fallback={<FullScreenLoader />}>
       <Component />
     </Suspense>
   );
@@ -144,7 +112,7 @@ function TelegramGate() {
         <div
           key={i}
           className="absolute pointer-events-none font-black font-display"
-          style={{ left: `${b.x}%`, top: `${b.y}%`, fontSize: b.s, color: '#eab308', opacity: b.o }}
+          style={{ left: `${b.x}%`, top: `${b.y}%`, fontSize: b.s, color: 'var(--gold)', opacity: b.o }}
         >
           ₿
         </div>
@@ -168,7 +136,7 @@ function TelegramGate() {
           />
           <div
             className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center font-black text-sm"
-            style={{ background: 'linear-gradient(135deg, #eab308, #ca8a04)', color: '#090b12' }}
+            style={{ background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))', color: '#090b12' }}
           >
             ₿
           </div>
@@ -179,7 +147,7 @@ function TelegramGate() {
           <h1
             className="text-4xl font-black font-display tracking-[0.12em] mb-1"
             style={{
-              background: 'linear-gradient(135deg, #fde68a 0%, #eab308 50%, #ca8a04 100%)',
+              background: 'linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -189,11 +157,11 @@ function TelegramGate() {
             B/\NK$DATA
           </h1>
           <div className="flex items-center justify-center gap-2">
-            <span className="text-xs font-black font-display" style={{ color: '#eab308' }}>₿</span>
+            <span className="text-xs font-black font-display" style={{ color: 'var(--gold)' }}>₿</span>
             <p className="text-[10px] font-display font-semibold tracking-[0.35em] uppercase" style={{ color: '#eab30870' }}>
               La Boutique Premium
             </p>
-            <span className="text-xs font-black font-display" style={{ color: '#eab308' }}>₿</span>
+            <span className="text-xs font-black font-display" style={{ color: 'var(--gold)' }}>₿</span>
           </div>
         </div>
 
@@ -208,7 +176,7 @@ function TelegramGate() {
           href="https://t.me/bankdata667_bot"
           className="flex items-center gap-3 px-6 py-3 rounded-xl font-display font-black text-sm w-full justify-center transition-opacity hover:opacity-90"
           style={{
-            background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+            background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))',
             color: '#090b12',
             boxShadow: '0 0 25px #eab30850',
           }}
@@ -317,20 +285,22 @@ function VerificationGate({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <VerificationGate>
-          <AuthProvider>
-            <CartProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <MainApp />
-              </WouterRouter>
-              <Toaster />
-            </CartProvider>
-          </AuthProvider>
-        </VerificationGate>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <VerificationGate>
+            <AuthProvider>
+              <CartProvider>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <MainApp />
+                </WouterRouter>
+                <Toaster />
+              </CartProvider>
+            </AuthProvider>
+          </VerificationGate>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

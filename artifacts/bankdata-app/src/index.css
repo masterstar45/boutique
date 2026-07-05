@@ -1,4 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+/* Self-hosted fonts (no render-blocking Google Fonts request, tighter CSP) */
+@import "@fontsource/outfit/300.css";
+@import "@fontsource/outfit/400.css";
+@import "@fontsource/outfit/500.css";
+@import "@fontsource/outfit/600.css";
+@import "@fontsource/outfit/700.css";
+@import "@fontsource/outfit/800.css";
+@import "@fontsource/outfit/900.css";
+@import "@fontsource/dm-sans/400.css";
+@import "@fontsource/dm-sans/500.css";
+@import "@fontsource/dm-sans/600.css";
+@import "@fontsource/dm-sans/700.css";
+@import "@fontsource/dm-sans/400-italic.css";
 @import "tailwindcss";
 
 :root {
@@ -26,6 +38,11 @@
   --border: 240 10% 14%;
   --input: 240 10% 14%;
   --ring: 45 93% 47%;
+
+  /* Brand gold — single source of truth for inline-style usages */
+  --gold: #eab308;
+  --gold-dark: #ca8a04;
+  --gold-light: #fde68a;
 }
 
 @theme {

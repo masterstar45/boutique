@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useGetAffiliateStats } from '@workspace/api-client-react';
@@ -79,7 +80,7 @@ export function Profile() {
     }
     setDepositState({ step: 'loading' });
     try {
-      const res = await fetch('/api/deposits/create', {
+      const res = await apiFetch('/api/deposits/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: parsed.toFixed(2) }),
@@ -100,7 +101,7 @@ export function Profile() {
     setDepositState(prev => prev.step === 'paying' ? { ...prev, step: 'polling' } : prev);
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/deposits/${depositId}/status`);
+        const res = await apiFetch(`/api/deposits/${depositId}/status`);
         const data = await parseApiResponse(res);
         if (!res.ok) return;
         if (data.status === 'confirmed') {

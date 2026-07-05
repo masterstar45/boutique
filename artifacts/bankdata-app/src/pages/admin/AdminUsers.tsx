@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState } from 'react';
 import { useAdminListUsers } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,7 +33,7 @@ export function AdminUsers() {
     setTogglingId(userId);
     try {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch(`/api/admin/users/${userId}/admin`, {
+      const res = await apiFetch(`/api/admin/users/${userId}/admin`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

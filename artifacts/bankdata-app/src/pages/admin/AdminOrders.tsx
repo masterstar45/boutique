@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState } from 'react';
 import { useAdminListOrders } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,7 +33,7 @@ export function AdminOrders() {
     setUpdatingId(orderId);
     try {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+      const res = await apiFetch(`/api/admin/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

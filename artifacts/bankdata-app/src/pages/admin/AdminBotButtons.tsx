@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Plus, Edit2, Trash2, X, GripVertical, ExternalLink, AppWindow, ToggleLeft, ToggleRight, Loader2, Rows3 } from 'lucide-react';
@@ -24,7 +25,7 @@ function normalizeUrlInput(raw: string): string {
 }
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`/api${path}`, options);
+  const res = await apiFetch(`/api${path}`, options);
   if (!res.ok && res.status !== 204) {
     const err = await res.json().catch(() => ({ error: 'Erreur reseau' }));
     throw new Error(err.error || 'Erreur');

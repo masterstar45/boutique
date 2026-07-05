@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useTelegramAuth } from '@workspace/api-client-react';
 import type { UserProfile } from '@workspace/api-client-react';
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (storedToken) {
         try {
-          const res = await fetch('/api/users/me', {
+          const res = await apiFetch('/api/users/me', {
             headers: { Authorization: `Bearer ${storedToken}` }
           });
           if (res.ok) {
@@ -244,7 +245,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const res = await fetch('/api/users/me', {
+      const res = await apiFetch('/api/users/me', {
         headers: { Authorization: `Bearer ${storedToken}` }
       });
       if (res.ok) {

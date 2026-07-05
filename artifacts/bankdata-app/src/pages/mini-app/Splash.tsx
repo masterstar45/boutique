@@ -29,12 +29,12 @@ function GlitchTitle() {
       <h1
         className="text-5xl font-black font-display tracking-[0.12em]"
         style={{
-          background: 'linear-gradient(135deg, #fde68a 0%, #eab308 40%, #ca8a04 100%)',
+          background: 'linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 40%, var(--gold-dark) 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
           filter: glitch
-            ? 'drop-shadow(2px 0 0 #eab308) drop-shadow(-2px 0 0 #fde68a)'
+            ? 'drop-shadow(2px 0 0 var(--gold)) drop-shadow(-2px 0 0 var(--gold-light))'
             : 'drop-shadow(0 0 24px #eab30870)',
           transform: glitch ? 'translateX(2px)' : 'none',
           transition: 'transform 0.05s',
@@ -46,7 +46,7 @@ function GlitchTitle() {
         <h1
           className="absolute inset-0 text-5xl font-black font-display tracking-[0.12em]"
           style={{
-            background: 'linear-gradient(135deg, #eab308, #ca8a04)',
+            background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
@@ -123,7 +123,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
         <motion.div
           key={b.id}
           className="absolute pointer-events-none font-black font-display"
-          style={{ left: `${b.x}%`, top: `${b.y}%`, fontSize: b.size, color: '#eab308', opacity: b.opacity }}
+          style={{ left: `${b.x}%`, top: `${b.y}%`, fontSize: b.size, color: 'var(--gold)', opacity: b.opacity }}
           animate={{ y: [0, -20, 0], opacity: [b.opacity, b.opacity * 2.8, b.opacity] }}
           transition={{ delay: b.delay, duration: b.duration, repeat: Infinity, ease: 'easeInOut' }}
         >
@@ -168,7 +168,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
             className="absolute -bottom-2 -right-2 w-9 h-9 rounded-full flex items-center justify-center font-black text-base"
-            style={{ background: 'linear-gradient(135deg, #eab308, #ca8a04)', color: '#090b12', boxShadow: '0 0 14px #eab30880' }}
+            style={{ background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))', color: '#090b12', boxShadow: '0 0 14px #eab30880' }}
           >
             ₿
           </motion.div>
@@ -191,11 +191,11 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
           transition={{ delay: 0.65 }}
           className="flex items-center gap-2 mb-7"
         >
-          <span className="text-sm font-black" style={{ color: '#eab308' }}>₿</span>
+          <span className="text-sm font-black" style={{ color: 'var(--gold)' }}>₿</span>
           <p className="text-[10px] font-display font-semibold tracking-[0.35em] uppercase" style={{ color: '#eab30875' }}>
             La Boutique Premium
           </p>
-          <span className="text-sm font-black" style={{ color: '#eab308' }}>₿</span>
+          <span className="text-sm font-black" style={{ color: 'var(--gold)' }}>₿</span>
         </motion.div>
 
         {/* Welcome message */}
@@ -215,7 +215,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
             >
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shrink-0"
-                style={{ background: 'linear-gradient(135deg, #eab308, #ca8a04)', color: '#090b12' }}
+                style={{ background: 'linear-gradient(135deg, var(--gold), var(--gold-dark))', color: '#090b12' }}
               >
                 ₿
               </div>
@@ -226,7 +226,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
                 <div
                   className="text-base font-black font-display tracking-wide"
                   style={{
-                    background: 'linear-gradient(135deg, #fde68a, #eab308)',
+                    background: 'linear-gradient(135deg, var(--gold-light), var(--gold))',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -251,7 +251,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
             <span className="text-[9px] font-display tracking-widest uppercase" style={{ color: '#eab30855' }}>
               Chargement
             </span>
-            <span className="text-[9px] font-display font-bold" style={{ color: '#eab308' }}>
+            <span className="text-[9px] font-display font-bold" style={{ color: 'var(--gold)' }}>
               {progress}%
             </span>
           </div>
@@ -263,7 +263,7 @@ export function Splash({ onComplete }: { onComplete: () => void }) {
               className="h-full rounded-full transition-all duration-100"
               style={{
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg, #ca8a04, #eab308, #fde68a)',
+                background: 'linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light))',
                 boxShadow: '0 0 10px #eab30890',
               }}
             />

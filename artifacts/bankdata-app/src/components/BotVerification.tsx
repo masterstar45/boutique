@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { motion } from 'framer-motion';
@@ -28,7 +29,7 @@ export function BotVerification({ onVerified, onError }: BotVerificationProps) {
 
     const loadRuntimeTurnstileKey = async () => {
       try {
-        const response = await fetch('/api/health/turnstile-config');
+        const response = await apiFetch('/api/health/turnstile-config');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json() as { siteKey?: string };

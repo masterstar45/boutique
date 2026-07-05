@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useEffect, useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { COUNTRIES as RAW_COUNTRIES } from '@/lib/countries';
@@ -26,7 +27,7 @@ export function AdminRubriqueCountries() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/admin/rubriques/countries');
+        const res = await apiFetch('/api/admin/rubriques/countries');
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || 'Erreur chargement');
 
@@ -66,7 +67,7 @@ export function AdminRubriqueCountries() {
     setSavingRubrique(rubrique);
     try {
       const countries = Array.from(state[rubrique] ?? []);
-      const res = await fetch(`/api/admin/rubriques/${rubrique}/countries`, {
+      const res = await apiFetch(`/api/admin/rubriques/${rubrique}/countries`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ countries }),

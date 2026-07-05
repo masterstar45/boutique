@@ -28,7 +28,7 @@ function AnimatedLogo() {
       ref={ref}
       className="font-display font-black text-lg tracking-wider"
       style={{
-        background: 'linear-gradient(90deg, #ca8a04 0%, #eab308 20%, #fde68a 35%, #fff7aa 50%, #fde68a 65%, #eab308 80%, #ca8a04 100%)',
+        background: 'linear-gradient(90deg, var(--gold-dark) 0%, var(--gold) 20%, var(--gold-light) 35%, #fff7aa 50%, var(--gold-light) 65%, var(--gold) 80%, var(--gold-dark) 100%)',
         backgroundSize: '200% 100%',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',

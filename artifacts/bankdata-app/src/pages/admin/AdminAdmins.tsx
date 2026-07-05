@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/api-fetch";
 import React, { useState } from 'react';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ function useAdmins() {
     queryKey: ['/api/admin/admins'],
     queryFn: async () => {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch('/api/admin/admins', {
+      const res = await apiFetch('/api/admin/admins', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -56,7 +57,7 @@ export function AdminAdmins() {
     setPromoting(true);
     try {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch('/api/admin/admins/promote', {
+      const res = await apiFetch('/api/admin/admins/promote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ telegramId: promoteId.trim() }),
@@ -78,7 +79,7 @@ export function AdminAdmins() {
     setRevoking(userId);
     try {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch(`/api/admin/admins/${userId}`, {
+      const res = await apiFetch(`/api/admin/admins/${userId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -99,7 +100,7 @@ export function AdminAdmins() {
     setCreditResult(null);
     try {
       const token = localStorage.getItem('bankdata_token');
-      const res = await fetch('/api/admin/credit', {
+      const res = await apiFetch('/api/admin/credit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
