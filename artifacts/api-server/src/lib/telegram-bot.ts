@@ -142,7 +142,7 @@ export async function sendStartMessage(
 async function buildStartKeyboard(miniAppUrl: string): Promise<TelegramBot.InlineKeyboardButton[][]> {
   // Default button always present
   const defaultBtn: TelegramBot.InlineKeyboardButton = {
-    text: "🛒 Accéder à la boutique",
+    text: "⚡️ 👑 OUVRIR LA BOUTIQUE 👑 ⚡️",
     web_app: { url: miniAppUrl },
   };
 
