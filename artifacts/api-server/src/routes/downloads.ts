@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, downloadsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { Readable } from "stream";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { requireAuth } from "../middlewares/auth";
@@ -35,11 +35,6 @@ router.get("/downloads/:token", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  if (download.downloadCount >= download.maxDownloads) {
-    res.status(403).json({ error: "Limite de téléchargements atteinte" });
-    return;
-  }
-
   const servePath = download.generatedFileUrl ?? null;
   const fileName = download.generatedFileName ?? null;
 
@@ -48,10 +43,22 @@ router.get("/downloads/:token", requireAuth, async (req, res): Promise<void> => 
     return;
   }
 
-  await db.update(downloadsTable).set({
-    downloadCount: download.downloadCount + 1,
-    lastDownloadedAt: new Date(),
-  }).where(eq(downloadsTable.id, download.id));
+  // Atomically claim one download slot so concurrent requests can't exceed maxDownloads.
+  const claimed = await db.update(downloadsTable)
+    .set({
+      downloadCount: sql`${downloadsTable.downloadCount} + 1`,
+      lastDownloadedAt: new Date(),
+    })
+    .where(and(
+      eq(downloadsTable.id, download.id),
+      sql`${downloadsTable.downloadCount} < ${downloadsTable.maxDownloads}`,
+    ))
+    .returning({ id: downloadsTable.id });
+
+  if (claimed.length === 0) {
+    res.status(403).json({ error: "Limite de téléchargements atteinte" });
+    return;
+  }
 
   try {
     const file = await storageService.getObjectEntityFile(servePath);
